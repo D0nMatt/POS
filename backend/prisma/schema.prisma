@@ -1,0 +1,31 @@
+// Este archivo define el proveedor de la base de datos y el generador del cliente.
+datasource db {
+  provider = "sqlite" // Usaremos SQLite para desarrollo local, es súper simple.
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ========= AQUI EMPIEZAN NUESTROS MODELOS =========
+
+// Modelo para los Usuarios (Administradores y Trabajadores)
+model User {
+  id        Int      @id @default(autoincrement()) // ID numérico único
+  email     String   @unique // El email debe ser único para cada usuario
+  name      String
+  password  String   // Guardaremos la contraseña encriptada aquí
+  role      String   @default("WORKER") // Puede ser "WORKER" o "ADMIN"
+  createdAt DateTime @default(now()) // Fecha de creación del registro
+}
+
+// Modelo para los Productos del inventario
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique // El nombre del producto debe ser único
+  price     Float    // Precio de venta del producto
+  stock     Int      @default(0) // Cantidad de unidades en inventario
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // Se actualiza automáticamente al modificar
+}
