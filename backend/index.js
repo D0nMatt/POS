@@ -2,35 +2,34 @@
 
 // 1. Importaciones
 const express = require('express');
-const { PrismaClient } = require('@prisma/client'); // Importamos el cliente de Prisma
-const { body, validationResult } = require('express-validator'); // Importamos herramientas de validación
-const bcrypt = require('bcryptjs'); // Importamos bcrypt para hashear contraseñas
+const { PrismaClient } = require('@prisma/client');
+const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken'); // Importamos la librería JWT
 
 // 2. Inicializaciones
 const app = express();
-const prisma = new PrismaClient(); // Creamos una instancia del cliente de Prisma
+const prisma = new PrismaClient();
 
 // 3. Middlewares
-app.use(express.json()); // Le decimos a Express que entienda peticiones con cuerpo en formato JSON
+app.use(express.json());
 
 // 4. Rutas
 
-// Ruta de prueba que ya teníamos
+// Ruta de prueba
 app.get('/', (req, res) => {
   res.send('¡El servidor del POS está funcionando correctamente!');
 });
 
-// --- NUEVA RUTA PARA REGISTRAR USUARIOS ---
+// Ruta para registrar usuarios
 app.post(
   '/api/users',
   [
-    // Validaciones
     body('email').isEmail().withMessage('Por favor, introduce un email válido.'),
     body('name').notEmpty().withMessage('El nombre no puede estar vacío.'),
     body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres.'),
   ],
   async (req, res) => {
-    // Revisar si hay errores de validación
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -39,29 +38,71 @@ app.post(
     const { email, name, password, role } = req.body;
 
     try {
-      // Verificar si el usuario ya existe
       let user = await prisma.user.findUnique({ where: { email } });
       if (user) {
         return res.status(400).json({ msg: 'El usuario ya existe' });
       }
 
-      // Hashear la contraseña
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
-      // Crear el nuevo usuario en la base de datos
       user = await prisma.user.create({
-        data: {
-          email,
-          name,
-          password: hashedPassword,
-          role, // Opcional, por defecto será 'WORKER'
-        },
+        data: { email, name, password: hashedPassword, role },
       });
 
-      // Por ahora no devolveremos un token, solo un mensaje de éxito
       res.status(201).json({ msg: 'Usuario registrado exitosamente', userId: user.id });
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Error en el servidor');
+    }
+  }
+);
 
+// --- NUEVA RUTA PARA INICIAR SESIÓN (LOGIN) ---
+app.post(
+  '/api/auth/login',
+  [
+    body('email').isEmail().withMessage('Por favor, introduce un email válido.'),
+    body('password').exists().withMessage('La contraseña es requerida.'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    try {
+      // 1. Verificar si el usuario existe
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        return res.status(400).json({ msg: 'Credenciales inválidas' });
+      }
+
+      // 2. Comparar la contraseña enviada con la de la base de datos
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ msg: 'Credenciales inválidas' });
+      }
+
+      // 3. Si todo es correcto, crear el JWT
+      const payload = {
+        user: {
+          id: user.id,
+          role: user.role, // Incluimos el rol en el token
+        },
+      };
+
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET, // Usamos el secreto del archivo .env
+        { expiresIn: '5h' }, // El token expirará en 5 horas
+        (err, token) => {
+          if (err) throw err;
+          res.json({ token }); // Enviamos el token al cliente
+        }
+      );
     } catch (err) {
       console.error(err.message);
       res.status(500).send('Error en el servidor');
