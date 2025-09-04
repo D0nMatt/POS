@@ -8,7 +8,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ========= AQUI EMPIEZAN NUESTROS MODELOS =========
+// ========= MODELOS =========
 
 // Modelo para los Usuarios (Administradores y Trabajadores)
 model User {
@@ -18,9 +18,11 @@ model User {
   password  String   // Guardaremos la contraseña encriptada aquí
   role      String   @default("WORKER") // Puede ser "WORKER" o "ADMIN"
   createdAt DateTime @default(now()) // Fecha de creación del registro
+
+  sales     Sale[]   // Un usuario puede tener muchas ventas
 }
 
-// Modelo para los Productos del inventario
+//Productos del inventario
 model Product {
   id        Int      @id @default(autoincrement())
   name      String   @unique // El nombre del producto debe ser único
@@ -28,4 +30,31 @@ model Product {
   stock     Int      @default(0) // Cantidad de unidades en inventario
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt // Se actualiza automáticamente al modificar
+
+  saleItems SaleItem[] // Un producto puede estar en muchos items de venta
+}
+
+// ========= NUEVOS MODELOS PARA LAS VENTAS =========
+
+model Sale {
+  id        Int      @id @default(autoincrement())
+  total     Float    // Monto total de la venta
+  createdAt DateTime @default(now())
+  
+  userId    Int      // Clave foránea para el usuario
+  user      User     @relation(fields: [userId], references: [id]) // Relación con el usuario
+  
+  items     SaleItem[] // Una venta tiene muchos items
+}
+
+model SaleItem {
+  id        Int      @id @default(autoincrement())
+  quantity  Int      // Cantidad del producto vendido
+  price     Float    // Precio del producto al momento de la venta
+  
+  saleId    Int      // Clave foránea para la venta
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  
+  productId Int      // Clave foránea para el producto
+  product   Product  @relation(fields: [productId], references: [id])
 }
