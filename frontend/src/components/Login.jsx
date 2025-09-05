@@ -1,14 +1,15 @@
 // src/components/Login.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 
 function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
-
+  const { setToken } = useContext(AuthContext);
   const { email, password } = formData;
 
   const onChange = (e) => {
@@ -19,6 +20,7 @@ function Login() {
     e.preventDefault();
     try {
       const res = await axios.post('/auth/login', { email, password });
+      setToken(res.data.token);
       
       console.log('Respuesta del servidor:', res.data);
       alert('¡Inicio de sesión exitoso!');
