@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'; // Para el sistema de rutas
 import { AuthProvider } from './context/AuthContext.jsx'; // Para el estado de autenticación
 import App from './App.jsx';
 import axios from 'axios';
+import './index.css';
 
 axios.defaults.baseURL = 'http://localhost:3001/api';
 

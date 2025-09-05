@@ -27,4 +27,18 @@ router.post('/', [authMiddleware, adminMiddleware], async (req, res) => {
     }
 });
 
+// Actualizar el layout de una mesa (solo admin)
+router.put('/:id/layout', [authMiddleware, adminMiddleware], async (req, res) => {
+    const { x, y, width, height } = req.body;
+    try {
+        const updatedTable = await prisma.table.update({
+            where: { id: parseInt(req.params.id) },
+            data: { x, y, width, height },
+        });
+        res.json(updatedTable);
+    } catch (err) {
+        res.status(500).send('Error en el servidor');
+    }
+});
+
 module.exports = router;
