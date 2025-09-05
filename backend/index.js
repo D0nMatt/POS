@@ -11,6 +11,7 @@ const authMiddleware = require('./middleware/auth');
 const adminMiddleware = require('./middleware/admin');
 const dashboardRoutes = require('./routes/dashboard');
 const importRoutes = require('./routes/import');
+const tablesRoutes = require('./routes/tables');
 
 // 2. Inicializaciones
 const app = express();
@@ -21,6 +22,7 @@ app.use(express.json());
 app.use(cors());
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/tables', tablesRoutes);
 
 // 4. Rutas
 // Ruta para registrar usuarios

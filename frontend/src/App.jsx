@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ProductsPage from './pages/ProductsPage';
+import PosPage from './pages/PosPage';
 
 function App() {
   const { token } = useContext(AuthContext);
@@ -25,9 +26,9 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        {/* Child routes of Layout */}
         <Route index element={<Dashboard />} />
         <Route path="products" element={<ProductsPage />} />
+        <Route path="pos" element={<PosPage />} />
       </Route>
       {/* If an authenticated user tries to go anywhere else, redirect to dashboard */}
       <Route path="*" element={<Navigate to="/" />} />

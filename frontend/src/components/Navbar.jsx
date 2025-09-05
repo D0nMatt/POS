@@ -25,9 +25,10 @@ function Navbar() {
     <nav style={navStyle}>
       <div>
         <Link to="/" style={linkStyle}>Dashboard</Link>
+        <Link to="/pos" style={linkStyle}>Punto de Venta</Link>
         <div style={{ display: 'inline-block' }}>
           <span style={linkStyle}>Inventario</span>
-          {/* This is a simple submenu link for now */}
+          
           <Link to="/products" style={{ ...linkStyle, marginLeft: '0.5rem' }}>- Productos</Link>
         </div>
       </div>
