@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "TimeClock" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "clockIn" DATETIME NOT NULL,
+    "clockOut" DATETIME,
+    "userId" INTEGER NOT NULL,
+    CONSTRAINT "TimeClock_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);

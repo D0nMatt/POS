@@ -392,6 +392,70 @@ app.delete('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, 
     }
 });
 
+// Iniciar turno (Clock In)
+app.post('/api/timeclock/in', authMiddleware, async (req, res) => {
+    const userId = req.user.id;
+    try {
+        // Verificar si ya hay un turno abierto (sin clockOut)
+        const openShift = await prisma.timeClock.findFirst({
+            where: {
+                userId: userId,
+                clockOut: null
+            }
+        });
+
+        if (openShift) {
+            return res.status(400).json({ msg: 'Ya tienes un turno iniciado.' });
+        }
+
+        // Crear el nuevo registro de inicio de turno
+        const newClockIn = await prisma.timeClock.create({
+            data: {
+                userId: userId,
+                clockIn: new Date() // Guarda la hora actual del servidor
+            }
+        });
+
+        res.status(201).json({ msg: 'Turno iniciado correctamente.', data: newClockIn });
+
+    } catch (err) {
+        res.status(500).send('Error en el servidor');
+    }
+});
+
+// Finalizar turno (Clock Out)
+app.post('/api/timeclock/out', authMiddleware, async (req, res) => {
+    const userId = req.user.id;
+    try {
+        // Buscar el turno abierto del usuario
+        const openShift = await prisma.timeClock.findFirst({
+            where: {
+                userId: userId,
+                clockOut: null
+            }
+        });
+
+        if (!openShift) {
+            return res.status(400).json({ msg: 'No tienes ningún turno activo para finalizar.' });
+        }
+
+        // Actualizar el registro con la hora de finalización
+        const finishedShift = await prisma.timeClock.update({
+            where: {
+                id: openShift.id
+            },
+            data: {
+                clockOut: new Date()
+            }
+        });
+
+        res.json({ msg: 'Turno finalizado correctamente.', data: finishedShift });
+
+    } catch (err) {
+        res.status(500).send('Error en el servidor');
+    }
+});
+
 // 5. Iniciar el Servidor
 const PORT = 3001;
 app.listen(PORT, () => {
