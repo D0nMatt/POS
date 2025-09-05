@@ -100,11 +100,19 @@ app.post(
 
       jwt.sign(
         payload,
-        process.env.JWT_SECRET, // Usamos el secreto del archivo .env
-        { expiresIn: '5h' }, // El token expirará en 5 horas
+        process.env.JWT_SECRET,
+        { expiresIn: '5h' },
         (err, token) => {
           if (err) throw err;
-          res.json({ token }); // Enviamos el token al cliente
+          res.json({
+            token,
+            user: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role
+            }
+          });
         }
       );
     } catch (err) {

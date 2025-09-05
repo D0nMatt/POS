@@ -4,12 +4,12 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 
-function Layout() {
+function Layout({ pageProps }) {
   return (
     <div>
-      <Navbar />
+      <Navbar {...pageProps} />
       <main style={{ padding: '1rem' }}>
-        <Outlet /> {/* Child routes will be rendered here */}
+        <Outlet />
       </main>
     </div>
   );

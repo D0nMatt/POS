@@ -1,5 +1,3 @@
-// src/components/Login.jsx
-
 import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
@@ -15,19 +13,13 @@ function Login() {
   const onChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+  const { login } = useContext(AuthContext);
 
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post('/auth/login', { email, password });
-      setToken(res.data.token);
-      
-      console.log('Respuesta del servidor:', res.data);
-      alert('¡Inicio de sesión exitoso!');
-      
-      // Aquí guardaremos el token para usarlo después
-      localStorage.setItem('token', res.data.token);
-
+      login(res.data.user, res.data.token);
     } catch (err) {
       console.error('Error de login:', err.response.data);
       alert(`Error: ${err.response.data.msg || 'No se pudo iniciar sesión'}`);

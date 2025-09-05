@@ -1,9 +1,10 @@
 import React, { useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-function Navbar() {
-  const { logout } = useContext(AuthContext);
+function Navbar({ onToggleEditMode, isEditMode }) {
+  const { user, logout } = useContext(AuthContext);
+  const location = useLocation();
 
   // Basic styling for the navbar (can be moved to a CSS file later)
   const navStyle = {
@@ -32,7 +33,14 @@ function Navbar() {
           <Link to="/products" style={{ ...linkStyle, marginLeft: '0.5rem' }}>- Productos</Link>
         </div>
       </div>
-      <button onClick={logout}>Cerrar Sesión</button>
+      <div>
+        {user?.role === 'ADMIN' && location.pathname === '/pos' && (
+          <button onClick={onToggleEditMode}>
+            {isEditMode ? 'Guardar Layout' : 'Editar Layout'}
+          </button>
+        )}
+        <button onClick={logout} style={{ marginLeft: '1rem' }}>Cerrar Sesión</button>
+      </div>
     </nav>
   );
 }
