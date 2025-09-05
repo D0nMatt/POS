@@ -7,6 +7,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('./middleware/auth');
+const adminMiddleware = require('./middleware/admin');
 
 // 2. Inicializaciones
 const app = express();
@@ -316,6 +317,80 @@ app.post(
     }
   }
 );
+
+// --- NUEVA RUTA PARA CONSULTAR TODOS LOS TRABAJADORES ---
+app.get('/api/employees', [authMiddleware, adminMiddleware], async (req, res) => {
+    try {
+        const employees = await prisma.user.findMany({
+            where: { role: 'WORKER' },
+            select: { id: true, name: true, email: true, createdAt: true }
+        });
+        res.json(employees);
+    } catch (err) {
+        res.status(500).send('Error en el servidor');
+    }
+});
+
+// --- NUEVA RUTA PARA CREAR UN NUEVO TRABAJADOR ---
+app.post('/api/employees', [authMiddleware, adminMiddleware, [
+    body('email').isEmail(),
+    body('name').notEmpty(),
+    body('password').isLength({ min: 6 })
+]], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, name, password } = req.body;
+
+    try {
+        let user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+            return res.status(400).json({ msg: 'Un usuario ya existe con ese email' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user = await prisma.user.create({
+            data: {
+                email,
+                name,
+                password: hashedPassword,
+                role: 'WORKER', // Se crea explícitamente como trabajador
+            },
+        });
+
+        res.status(201).json({ id: user.id, name: user.name, email: user.email });
+
+    } catch (err) {
+        res.status(500).send('Error en el servidor');
+    }
+});
+
+// --- NUEVA RUTA PARA ELIMINAR UN TRABAJADOR ---
+app.delete('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, res) => {
+    try {
+        const employeeId = parseInt(req.params.id);
+        const user = await prisma.user.findUnique({ where: { id: employeeId } });
+
+        if (!user || user.role !== 'WORKER') {
+            return res.status(404).json({ msg: 'Empleado no encontrado' });
+        }
+
+        // Aquí podrías añadir lógica para reasignar ventas antes de borrar, pero por ahora lo eliminamos directamente.
+        await prisma.user.delete({ where: { id: employeeId } });
+
+        res.json({ msg: 'Empleado eliminado correctamente' });
+    } catch (err) {
+        // Manejar el caso en que el empleado tenga ventas asociadas
+        if (err.code === 'P2003') {
+            return res.status(400).json({ msg: 'No se puede eliminar el empleado porque tiene ventas registradas.' });
+        }
+        res.status(500).send('Error en el servidor');
+    }
+});
 
 // 5. Iniciar el Servidor
 const PORT = 3001;
