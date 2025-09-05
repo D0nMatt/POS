@@ -7,9 +7,10 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ProductsPage from './pages/ProductsPage';
 import PosPage from './pages/PosPage';
+import EmployeesPage from './pages/EmployeesPage';
 
 function App() {
-  const { token } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
 
   if (!token) {
     // If not authenticated, only show the login page
@@ -22,15 +23,20 @@ function App() {
     );
   }
 
-  // If authenticated, show pages within the main layout
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
-        <Route path="products" element={<ProductsPage />} />
         <Route path="pos" element={<PosPage />} />
+
+        {/* Rutas solo para Admin */}
+        {user?.role === 'ADMIN' && (
+          <>
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="employees" element={<EmployeesPage />} /> {/* 2. Añade la nueva ruta */}
+          </>
+        )}
       </Route>
-      {/* If an authenticated user tries to go anywhere else, redirect to dashboard */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

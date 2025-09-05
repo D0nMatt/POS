@@ -145,22 +145,22 @@ app.post(
     const { name, price, stock } = req.body;
 
     try {
-        // Verificar si ya existe un producto con el mismo nombre
-        const productExists = await prisma.product.findUnique({ where: { name }});
-        if (productExists) {
-            return res.status(400).json({ msg: 'Ya existe un producto con ese nombre' });
+      // Verificar si ya existe un producto con el mismo nombre
+      const productExists = await prisma.product.findUnique({ where: { name } });
+      if (productExists) {
+        return res.status(400).json({ msg: 'Ya existe un producto con ese nombre' });
+      }
+
+      // Crear el nuevo producto
+      const product = await prisma.product.create({
+        data: {
+          name,
+          price,
+          stock,
         }
+      });
 
-        // Crear el nuevo producto
-        const product = await prisma.product.create({
-            data: {
-                name,
-                price,
-                stock,
-            }
-        });
-
-        res.status(201).json(product);
+      res.status(201).json(product);
 
     } catch (err) {
       console.error(err.message);
@@ -184,69 +184,69 @@ app.get('/api/products', async (req, res) => {
 
 // --- NUEVA RUTA PARA CONSULTAR UN PRODUCTO
 app.get('/api/products/:id', async (req, res) => {
-    try {
-        const product = await prisma.product.findUnique({
-            where: { id: parseInt(req.params.id) }
-        });
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
 
-        if (!product) {
-            return res.status(404).json({ msg: 'Producto no encontrado' });
-        }
-
-        res.json(product);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Error en el servidor');
+    if (!product) {
+      return res.status(404).json({ msg: 'Producto no encontrado' });
     }
+
+    res.json(product);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 
 // --- NUEVA RUTA PARA ACTUALIZAR UN PRODUCTO
 app.put('/api/products/:id', authMiddleware, async (req, res) => {
-    const { name, price, stock } = req.body;
-    try {
-        let product = await prisma.product.findUnique({
-            where: { id: parseInt(req.params.id) }
-        });
+  const { name, price, stock } = req.body;
+  try {
+    let product = await prisma.product.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
 
-        if (!product) {
-            return res.status(404).json({ msg: 'Producto no encontrado' });
-        }
-        
-        product = await prisma.product.update({
-            where: { id: parseInt(req.params.id) },
-            data: { name, price, stock }
-        });
-
-        res.json(product);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Error en el servidor');
+    if (!product) {
+      return res.status(404).json({ msg: 'Producto no encontrado' });
     }
+
+    product = await prisma.product.update({
+      where: { id: parseInt(req.params.id) },
+      data: { name, price, stock }
+    });
+
+    res.json(product);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 
 // --- NUEVA RUTA PARA ELIMINAR UN PRODUCTO
 app.delete('/api/products/:id', authMiddleware, async (req, res) => {
-    try {
-        const product = await prisma.product.findUnique({
-            where: { id: parseInt(req.params.id) }
-        });
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
 
-        if (!product) {
-            return res.status(404).json({ msg: 'Producto no encontrado' });
-        }
-
-        await prisma.product.delete({
-            where: { id: parseInt(req.params.id) }
-        });
-
-        res.json({ msg: 'Producto eliminado' });
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Error en el servidor');
+    if (!product) {
+      return res.status(404).json({ msg: 'Producto no encontrado' });
     }
+
+    await prisma.product.delete({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    res.json({ msg: 'Producto eliminado' });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 // --- NUEVA RUTA PARA REGISTRAR UNA VENTA ---
@@ -321,7 +321,7 @@ app.post(
             },
           });
         }
-        
+
         return sale;
       });
 
@@ -337,12 +337,27 @@ app.post(
 
 // --- NUEVA RUTA PARA CONSULTAR TODOS LOS TRABAJADORES ---
 app.get('/api/employees', [authMiddleware, adminMiddleware], async (req, res) => {
+  try {
+    const employees = await prisma.user.findMany({
+      where: { role: 'WORKER' },
+      select: { id: true, name: true, email: true, createdAt: true }
+    });
+    res.json(employees);
+  } catch (err) {
+    res.status(500).send('Error en el servidor');
+  }
+});
+
+// --- NUEVA RUTA PARA EDITAR UN TRABAJADOR (NOMBRE Y EMAIL) ---
+app.put('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, res) => {
+    const { name, email } = req.body;
     try {
-        const employees = await prisma.user.findMany({
-            where: { role: 'WORKER' },
-            select: { id: true, name: true, email: true, createdAt: true }
+        const employeeId = parseInt(req.params.id);
+        const updatedEmployee = await prisma.user.update({
+            where: { id: employeeId },
+            data: { name, email },
         });
-        res.json(employees);
+        res.json(updatedEmployee);
     } catch (err) {
         res.status(500).send('Error en el servidor');
     }
@@ -350,127 +365,127 @@ app.get('/api/employees', [authMiddleware, adminMiddleware], async (req, res) =>
 
 // --- NUEVA RUTA PARA CREAR UN NUEVO TRABAJADOR ---
 app.post('/api/employees', [authMiddleware, adminMiddleware, [
-    body('email').isEmail(),
-    body('name').notEmpty(),
-    body('password').isLength({ min: 6 })
+  body('email').isEmail(),
+  body('name').notEmpty(),
+  body('password').isLength({ min: 6 })
 ]], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { email, name, password } = req.body;
+
+  try {
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      return res.status(400).json({ msg: 'Un usuario ya existe con ese email' });
     }
 
-    const { email, name, password } = req.body;
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    try {
-        let user = await prisma.user.findUnique({ where: { email } });
-        if (user) {
-            return res.status(400).json({ msg: 'Un usuario ya existe con ese email' });
-        }
+    user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+        role: 'WORKER', // Se crea explícitamente como trabajador
+      },
+    });
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+    res.status(201).json(user);
 
-        user = await prisma.user.create({
-            data: {
-                email,
-                name,
-                password: hashedPassword,
-                role: 'WORKER', // Se crea explícitamente como trabajador
-            },
-        });
-
-        res.status(201).json({ id: user.id, name: user.name, email: user.email });
-
-    } catch (err) {
-        res.status(500).send('Error en el servidor');
-    }
+  } catch (err) {
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 // --- NUEVA RUTA PARA ELIMINAR UN TRABAJADOR ---
 app.delete('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, res) => {
-    try {
-        const employeeId = parseInt(req.params.id);
-        const user = await prisma.user.findUnique({ where: { id: employeeId } });
+  try {
+    const employeeId = parseInt(req.params.id);
+    const user = await prisma.user.findUnique({ where: { id: employeeId } });
 
-        if (!user || user.role !== 'WORKER') {
-            return res.status(404).json({ msg: 'Empleado no encontrado' });
-        }
-
-        // Aquí podrías añadir lógica para reasignar ventas antes de borrar, pero por ahora lo eliminamos directamente.
-        await prisma.user.delete({ where: { id: employeeId } });
-
-        res.json({ msg: 'Empleado eliminado correctamente' });
-    } catch (err) {
-        // Manejar el caso en que el empleado tenga ventas asociadas
-        if (err.code === 'P2003') {
-            return res.status(400).json({ msg: 'No se puede eliminar el empleado porque tiene ventas registradas.' });
-        }
-        res.status(500).send('Error en el servidor');
+    if (!user || user.role !== 'WORKER') {
+      return res.status(404).json({ msg: 'Empleado no encontrado' });
     }
+
+    // Aquí podrías añadir lógica para reasignar ventas antes de borrar, pero por ahora lo eliminamos directamente.
+    await prisma.user.delete({ where: { id: employeeId } });
+
+    res.json({ msg: 'Empleado eliminado correctamente' });
+  } catch (err) {
+    // Manejar el caso en que el empleado tenga ventas asociadas
+    if (err.code === 'P2003') {
+      return res.status(400).json({ msg: 'No se puede eliminar el empleado porque tiene ventas registradas.' });
+    }
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 // Iniciar turno (Clock In)
 app.post('/api/timeclock/in', authMiddleware, async (req, res) => {
-    const userId = req.user.id;
-    try {
-        // Verificar si ya hay un turno abierto (sin clockOut)
-        const openShift = await prisma.timeClock.findFirst({
-            where: {
-                userId: userId,
-                clockOut: null
-            }
-        });
+  const userId = req.user.id;
+  try {
+    // Verificar si ya hay un turno abierto (sin clockOut)
+    const openShift = await prisma.timeClock.findFirst({
+      where: {
+        userId: userId,
+        clockOut: null
+      }
+    });
 
-        if (openShift) {
-            return res.status(400).json({ msg: 'Ya tienes un turno iniciado.' });
-        }
-
-        // Crear el nuevo registro de inicio de turno
-        const newClockIn = await prisma.timeClock.create({
-            data: {
-                userId: userId,
-                clockIn: new Date() // Guarda la hora actual del servidor
-            }
-        });
-
-        res.status(201).json({ msg: 'Turno iniciado correctamente.', data: newClockIn });
-
-    } catch (err) {
-        res.status(500).send('Error en el servidor');
+    if (openShift) {
+      return res.status(400).json({ msg: 'Ya tienes un turno iniciado.' });
     }
+
+    // Crear el nuevo registro de inicio de turno
+    const newClockIn = await prisma.timeClock.create({
+      data: {
+        userId: userId,
+        clockIn: new Date() // Guarda la hora actual del servidor
+      }
+    });
+
+    res.status(201).json({ msg: 'Turno iniciado correctamente.', data: newClockIn });
+
+  } catch (err) {
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 // Finalizar turno (Clock Out)
 app.post('/api/timeclock/out', authMiddleware, async (req, res) => {
-    const userId = req.user.id;
-    try {
-        // Buscar el turno abierto del usuario
-        const openShift = await prisma.timeClock.findFirst({
-            where: {
-                userId: userId,
-                clockOut: null
-            }
-        });
+  const userId = req.user.id;
+  try {
+    // Buscar el turno abierto del usuario
+    const openShift = await prisma.timeClock.findFirst({
+      where: {
+        userId: userId,
+        clockOut: null
+      }
+    });
 
-        if (!openShift) {
-            return res.status(400).json({ msg: 'No tienes ningún turno activo para finalizar.' });
-        }
-
-        // Actualizar el registro con la hora de finalización
-        const finishedShift = await prisma.timeClock.update({
-            where: {
-                id: openShift.id
-            },
-            data: {
-                clockOut: new Date()
-            }
-        });
-
-        res.json({ msg: 'Turno finalizado correctamente.', data: finishedShift });
-
-    } catch (err) {
-        res.status(500).send('Error en el servidor');
+    if (!openShift) {
+      return res.status(400).json({ msg: 'No tienes ningún turno activo para finalizar.' });
     }
+
+    // Actualizar el registro con la hora de finalización
+    const finishedShift = await prisma.timeClock.update({
+      where: {
+        id: openShift.id
+      },
+      data: {
+        clockOut: new Date()
+      }
+    });
+
+    res.json({ msg: 'Turno finalizado correctamente.', data: finishedShift });
+
+  } catch (err) {
+    res.status(500).send('Error en el servidor');
+  }
 });
 
 // 5. Iniciar el Servidor
