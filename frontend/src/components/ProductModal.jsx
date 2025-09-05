@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import { Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 
-function ProductModal({ productToEdit, onClose, onProductUpdated, onProductCreated }) {
+function ProductModal({ open, productToEdit, onClose, onProductUpdated, onProductCreated }) {
   const [formData, setFormData] = useState({ name: '', price: '', stock: '' });
   const isEditMode = !!productToEdit;
 
   useEffect(() => {
-    if (isEditMode) {
+    if (isEditMode && productToEdit) {
       setFormData({
         name: productToEdit.name,
         price: productToEdit.price,
         stock: productToEdit.stock,
       });
+    } else {
+      setFormData({ name: '', price: '', stock: '' });
     }
-  }, [productToEdit, isEditMode]);
+  }, [productToEdit, isEditMode, open]);
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -24,7 +27,6 @@ function ProductModal({ productToEdit, onClose, onProductUpdated, onProductCreat
       price: parseFloat(formData.price),
       stock: parseInt(formData.stock, 10),
     };
-
     try {
       if (isEditMode) {
         const res = await api.put(`/products/${productToEdit.id}`, productData);
@@ -40,27 +42,19 @@ function ProductModal({ productToEdit, onClose, onProductUpdated, onProductCreat
     }
   };
 
-  // Estilos básicos para el modal
-  const modalStyle = {
-    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-    background: 'rgba(0, 0, 0, 0.5)', display: 'flex', 
-    alignItems: 'center', justifyContent: 'center'
-  };
-  const contentStyle = { background: 'white', padding: '2rem', borderRadius: '5px' };
-
   return (
-    <div style={modalStyle} onClick={onClose}>
-      <div style={contentStyle} onClick={(e) => e.stopPropagation()}>
-        <h2>{isEditMode ? 'Editar Producto' : 'Crear Nuevo Producto'}</h2>
-        <form onSubmit={onSubmit}>
-          <input name="name" value={formData.name} onChange={onChange} placeholder="Nombre" required />
-          <input name="price" type="number" value={formData.price} onChange={onChange} placeholder="Precio" required />
-          <input name="stock" type="number" value={formData.stock} onChange={onChange} placeholder="Stock" required />
-          <button type="submit">Guardar Cambios</button>
-          <button type="button" onClick={onClose}>Cancelar</button>
-        </form>
-      </div>
-    </div>
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>{isEditMode ? 'Editar Producto' : 'Crear Nuevo Producto'}</DialogTitle>
+      <DialogContent>
+        <TextField autoFocus margin="dense" name="name" label="Nombre del Producto" type="text" fullWidth variant="standard" value={formData.name} onChange={onChange} required />
+        <TextField margin="dense" name="price" label="Precio" type="number" fullWidth variant="standard" value={formData.price} onChange={onChange} required />
+        <TextField margin="dense" name="stock" label="Stock" type="number" fullWidth variant="standard" value={formData.stock} onChange={onChange} required />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onSubmit}>Guardar</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
