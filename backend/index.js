@@ -2,12 +2,15 @@
 
 // 1. Importaciones
 const express = require('express');
+const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('./middleware/auth');
 const adminMiddleware = require('./middleware/admin');
+const dashboardRoutes = require('./routes/dashboard');
+const importRoutes = require('./routes/import');
 
 // 2. Inicializaciones
 const app = express();
@@ -15,9 +18,11 @@ const prisma = new PrismaClient();
 
 // 3. Middlewares
 app.use(express.json());
+app.use(cors());
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/import', importRoutes);
 
 // 4. Rutas
-
 // Ruta para registrar usuarios
 app.post(
   '/api/users',
