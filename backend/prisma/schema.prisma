@@ -41,6 +41,7 @@ model Sale {
   id        Int      @id @default(autoincrement())
   total     Float    // Monto total de la venta
   createdAt DateTime @default(now())
+  status    String   @default("PENDING") // NUEVO CAMPO: "PENDING" o "COMPLETED"
   
   userId    Int      // Clave foránea para el usuario
   user      User     @relation(fields: [userId], references: [id]) // Relación con el usuario

@@ -41,4 +41,18 @@ router.put('/:id/layout', [authMiddleware, adminMiddleware], async (req, res) =>
     }
 });
 
+// Actualizar la forma de una mesa (solo admin)
+router.put('/:id/shape', [authMiddleware, adminMiddleware], async (req, res) => {
+    const { shape } = req.body;
+    try {
+        const updatedTable = await prisma.table.update({
+            where: { id: parseInt(req.params.id) },
+            data: { shape },
+        });
+        res.json(updatedTable);
+    } catch (err) {
+        res.status(500).send('Error en el servidor');
+    }
+});
+
 module.exports = router;
