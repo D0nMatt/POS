@@ -20,6 +20,7 @@ model User {
   createdAt DateTime @default(now()) // Fecha de creación del registro
 
   sales     Sale[]   // Un usuario puede tener muchas ventas
+  timeClock TimeClock[]
 }
 
 //Productos del inventario
@@ -57,4 +58,15 @@ model SaleItem {
   
   productId Int      // Clave foránea para el producto
   product   Product  @relation(fields: [productId], references: [id])
+}
+
+// ========= NUEVO MODELO PARA EL CONTROL HORARIO =========
+
+model TimeClock {
+  id        Int       @id @default(autoincrement())
+  clockIn   DateTime  // Hora de inicio del turno
+  clockOut  DateTime? // Hora de fin del turno (opcional, porque puede estar en curso)
+  
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
 }
