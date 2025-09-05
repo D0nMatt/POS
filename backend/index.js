@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('./middleware/auth');
 const adminMiddleware = require('./middleware/admin');
+const dashboardRoutes = require('./routes/dashboard');
 
 // 2. Inicializaciones
 const app = express();
@@ -17,6 +18,8 @@ const prisma = new PrismaClient();
 app.use(express.json());
 
 // 4. Rutas
+
+app.use('/api/dashboard', dashboardRoutes);
 
 // Ruta para registrar usuarios
 app.post(
