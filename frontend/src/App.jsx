@@ -10,16 +10,19 @@ import ProductsPage from './pages/ProductsPage';
 import PosPage from './pages/PosPage';
 import EmployeesPage from './pages/EmployeesPage';
 import CategoriesPage from './pages/CategoriesPage';
+import BanksPage from './pages/BanksPage';
+
+import CashierControlPage from './pages/CashierControlPage';
 
 function App() {
   const { token, user } = useContext(AuthContext);
 
   if (!token) {
-    // If not authenticated, only show the login page
+    // Si no está autenticado, redirigir al login
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
-        {/* Redirect any other path to /login */}
+        /* Redirige cualquier otra ruta a /login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -32,13 +35,14 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="pos" element={<PosPage />} />
-
+          <Route path="cashier-control" element={<CashierControlPage />} />
           {/* Rutas solo para Admin */}
           {user?.role === 'ADMIN' && (
             <>
               <Route path="products" element={<ProductsPage />} />
               <Route path="employees" element={<EmployeesPage />} />
               <Route path="categories" element={<CategoriesPage />} />
+              <Route path="banks" element={<BanksPage />} />
             </>
           )}
         </Route>

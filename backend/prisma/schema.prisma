@@ -1,6 +1,5 @@
-// ========= PROVEEDOR DE BD Y GENERADOR DEL CLIENTE =========
 datasource db {
-  provider = "sqlite" // Usaremos SQLite para desarrollo local, es súper simple.
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -8,117 +7,150 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ========= MODELOS =========
-
-// ========= MODELOS PARA LOS USUARIOS (ADMINISTRADORES Y TRABAJADORES) =========
-
+// ========= MODELOS DE USUARIOS E INVENTARIO =========
 model User {
-  id        Int      @id @default(autoincrement()) // ID numérico único
-  email     String   @unique // El email debe ser único para cada usuario
-  name      String
-  password  String // Guardaremos la contraseña encriptada aquí
-  role      String   @default("WORKER") // Puede ser "WORKER" o "ADMIN"
-  createdAt DateTime @default(now()) // Fecha de creación del registro
-
-  sales     Sale[] // Un usuario puede tener muchas ventas
-  timeClock TimeClock[]
-}
-
-// --- MODELO PARA LAS CATEGORÍAS DE PRODUCTOS ---
-model Category {
   id        Int      @id @default(autoincrement())
-  name      String   @unique 
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("WORKER")
   createdAt DateTime @default(now())
 
+  sales      Sale[]
+  timeClock  TimeClock[]
+  cashShifts CashShift[] // Un usuario puede abrir/cerrar varios turnos
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now())
   products  Product[]
 }
 
-// ========= MODELOS PARA LOS PRODUCTOS =========
-
 model Product {
-  id             Int      @id @default(autoincrement())
-  name           String   @unique
-  
-  // --- Campos solicitados ---
-  productType    String   @default("PRODUCTO") // TIPO_PRODUCTO: "PRODUCTO", "CONSUMIBLE", "SERVICIO", "ADICION"
-  status         String   @default("ACTIVO")   // ESTADO: "ACTIVO", "INACTIVO"
-  value          Float                         // VALOR (Precio de venta)
-  cost           Float    @default(0)           // COSTO
-  stock          Int      @default(0)           // Se mantiene el stock actual
-  minStock       Int?                          // STOCK_MINIMO (Opcional)
-  maxStock       Int?                          // STOCK_MAXIMO (Opcional)
-  
-  // Relación con CATEGORIA
-  categoryId     Int
-  category       Category? @relation(fields: [categoryId], references: [id])
-
-  // --- Campos para un mejor funcionamiento ---
-  sku            String?  @unique // (Stock Keeping Unit) Código único para el producto (para EAN, QR, etc.)
-  description    String?  // Descripción detallada del producto
-  imageUrl       String?  // URL para la imagen del producto
-  unit           String   @default("unit") // Unidad de medida: "unit", "kg", "liter"
-  
-  // Timestamps y relaciones existentes
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  saleItems      SaleItem[]
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  productType String     @default("PRODUCTO")
+  status      String     @default("ACTIVO")
+  value       Float
+  cost        Float      @default(0)
+  stock       Int        @default(0)
+  minStock    Int?
+  maxStock    Int?
+  categoryId  Int
+  category    Category   @relation(fields: [categoryId], references: [id])
+  sku         String?    @unique
+  description String?
+  imageUrl    String?
+  unit        String     @default("unit")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  saleItems   SaleItem[]
 }
 
-// ========= MODELOS PARA LAS VENTAS =========
+// ========= MODELOS FINANCIEROS Y DE TURNOS =========
 
-model Sale {
+// --- Modelo para Bancos/Cuentas ---
+// Cualquier lugar donde se pueda almacenar dinero.
+model Bank {
   id        Int      @id @default(autoincrement())
-  total     Float // Monto total de la venta
+  name      String   @unique // Ej: "Caja Principal", "Cuenta de Ahorros", "Caja Fuerte"
+  type      String // Ej: "CASH_REGISTER", "BANK_ACCOUNT", "SAFE"
+  balance   Float    @default(0) // Saldo actual
   createdAt DateTime @default(now())
-  status    String   @default("PENDING") // "PENDING" o "COMPLETED"
+  updatedAt DateTime @updatedAt
 
-  paymentMethod String?  // "CASH", "CARD" (Opcional hasta que se finalice)
-  amountPaid    Float?   // Monto que el cliente pagó
-  changeGiven   Float?   // Cambio devuelto al cliente
-
-  userId Int // Clave foránea para el usuario
-  user   User @relation(fields: [userId], references: [id]) // Relación con el usuario
-
-  items   SaleItem[] // Una venta tiene muchos items
-  tableId Int? // La venta puede estar asociada a una mesa (opcional)
-  table   Table?     @relation(fields: [tableId], references: [id])
+  // Relación con transacciones
+  transactions Transaction[]
 }
 
-model SaleItem {
-  id       Int   @id @default(autoincrement())
-  quantity Int // Cantidad del producto vendido
-  price    Float // Precio del producto al momento de la venta
-
-  saleId Int // Clave foránea para la venta
-  sale   Sale @relation(fields: [saleId], references: [id])
-
-  productId Int // Clave foránea para el producto
-  product   Product @relation(fields: [productId], references: [id])
-}
-
-// --- MODELO PARA LAS MESAS ---
-
-model Table {
-  id     Int    @id @default(autoincrement())
-  name   String @unique // Ej: "Mesa 1", "Barra 2"
-  status String @default("available") // "available", "occupied"
-
-  shape  String @default("square") // "square", "circle"
-  x      Float  @default(0) // Posición X
-  y      Float  @default(0) // Posición Y
-  width  Float  @default(100)
-  height Float  @default(100)
-
-  sales Sale[] // Una mesa puede tener muchas ventas
-}
-
-// ========= MODELO PARA EL CONTROL HORARIO =========
-
-model TimeClock {
-  id       Int       @id @default(autoincrement())
-  clockIn  DateTime // Hora de inicio del turno
-  clockOut DateTime? // Hora de fin del turno (opcional, porque puede estar en curso)
+// --- Modelo para Turnos de Caja ---
+// Registra la apertura y cierre de la caja para un usuario.
+model CashShift {
+  id              Int       @id @default(autoincrement())
+  openingBalance  Float // Saldo inicial con el que se abrió
+  closingBalance  Float? // Saldo final contado por el usuario
+  expectedBalance Float? // Saldo esperado (inicial + ventas en efectivo)
+  difference      Float? // Diferencia entre el contado y el esperado
+  openedAt        DateTime  @default(now())
+  closedAt        DateTime?
+  status          String    @default("OPEN") // "OPEN", "CLOSED"
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
+
+  transactions Transaction[] // Transacciones ocurridas durante este turno
+}
+
+// --- Modelo de Transacciones ---
+// Cada movimiento de dinero se registra aquí.
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  type        String // "SALE", "EXPENSE", "TRANSFER_IN", "TRANSFER_OUT", "OPENING_SHIFT"
+  amount      Float // Monto de la transacción
+  description String
+  createdAt   DateTime @default(now())
+
+  // A qué banco pertenece esta transacción
+  bankId Int
+  bank   Bank @relation(fields: [bankId], references: [id])
+
+  // Si la transacción ocurrió durante un turno de caja
+  cashShiftId Int?
+  cashShift   CashShift? @relation(fields: [cashShiftId], references: [id])
+
+  // Si la transacción está ligada a una venta
+  saleId Int?  @unique // Una transacción de venta solo puede estar ligada a una venta
+  sale   Sale? @relation(fields: [saleId], references: [id])
+}
+
+// ========= MODELOS DE VENTAS =========
+
+model Sale {
+  id        Int      @id @default(autoincrement())
+  total     Float
+  status    String   @default("PENDING") // "PENDING", "COMPLETED"
+  createdAt DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  tableId Int?
+  table   Table? @relation(fields: [tableId], references: [id])
+
+  items       SaleItem[]
+  transaction Transaction? // Cada venta completada tendrá una transacción asociada
+}
+
+model SaleItem {
+  id        Int     @id @default(autoincrement())
+  quantity  Int
+  price     Float
+  saleId    Int
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+// ========= MODELOS AUXILIARES =========
+
+model Table {
+  id     Int    @id @default(autoincrement())
+  name   String @unique
+  status String @default("available")
+  shape  String @default("square")
+  x      Float  @default(0)
+  y      Float  @default(0)
+  width  Float  @default(100)
+  height Float  @default(100)
+  sales  Sale[]
+}
+
+model TimeClock {
+  id       Int       @id @default(autoincrement())
+  clockIn  DateTime
+  clockOut DateTime?
+  userId   Int
+  user     User      @relation(fields: [userId], references: [id])
 }

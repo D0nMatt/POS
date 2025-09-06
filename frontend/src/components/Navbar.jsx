@@ -17,10 +17,11 @@ const Navbar = () => {
     <nav className="navbar-main">
       <div className="navbar-section">
         <NavLink to="/dashboard" className="navbar-link">Mi Negocio</NavLink>
-        <NavLink to="/pos" className="navbar-cta-button">Vender</NavLink>
       </div>
 
       <div className="navbar-section">
+        <NavLink to="/pos" className="navbar-cta-button">Punto de Venta</NavLink>
+        <NavLink to="/cashier-control" className="navbar-link">Control de Caja</NavLink>
         {/* --- Menú de Administración --- */}
         <div
           className="navbar-menu-container"
@@ -33,6 +34,7 @@ const Navbar = () => {
               <NavLink to="/dashboard" className="navbar-dropdown-item">Dashboard</NavLink>
               <NavLink to="/products" className="navbar-dropdown-item">Productos</NavLink>
               <NavLink to="/categories" className="navbar-dropdown-item">Categorías</NavLink>
+              <NavLink to="/banks" className="navbar-dropdown-item">Bancos</NavLink>
               <NavLink to="/employees" className="navbar-dropdown-item">Empleados</NavLink>
             </div>
           )}
