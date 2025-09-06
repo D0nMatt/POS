@@ -38,7 +38,7 @@ router.post('/', authMiddleware, async (req, res) => {
                 if (!product) throw new Error(`Producto con ID ${item.productId} no encontrado.`);
                 // Este chequeo de stock podría mejorarse para evitar condiciones de carrera, pero es funcional.
                 if (product.stock < item.quantity) throw new Error(`Stock insuficiente para ${product.name}.`);
-                totalSaleAmount += product.price * item.quantity;
+                totalSaleAmount += product.value * item.quantity;
             }
 
             const existingOrder = await tx.sale.findFirst({
@@ -57,7 +57,7 @@ router.post('/', authMiddleware, async (req, res) => {
                     saleId: sale.id,
                     productId: item.productId,
                     quantity: item.quantity,
-                    price: products.find(p => p.id === item.productId).price,
+                    price: products.find(p => p.id === item.productId).value,
                 })),
             });
 

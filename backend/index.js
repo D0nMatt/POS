@@ -22,13 +22,17 @@ const prisma = new PrismaClient();
 const server = http.createServer(app); // Creamos un servidor HTTP a partir de la app de Express
 const io = new Server(server, { // Inicializamos socket.io
     cors: {
-        origin: "http://localhost:3001", // Reemplaza con la URL de tu frontend
+        origin: "http://localhost:5173", 
         methods: ["GET", "POST"]
     }
 });
 
 
 // Middlewares
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 app.use(express.json());
 app.use(cors());
 app.use('/api/dashboard', dashboardRoutes);
@@ -36,10 +40,6 @@ app.use('/api/import', importRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/tables', tablesRoutes);
 app.use('/api/categories', categoriesRoutes);
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
 
 // Rutas
 // --- RUTA PARA REGISTRAR USUARIOS ---
@@ -317,11 +317,11 @@ app.post(
             throw new Error(`Stock insuficiente para ${product.name}.`);
           }
 
-          totalSaleAmount += product.price * item.quantity;
+          totalSaleAmount += product.value * item.quantity;
           saleItemsData.push({
             productId: item.productId,
             quantity: item.quantity,
-            price: product.price, // Guardamos el precio al momento de la venta
+            price: product.value, // Guardamos el precio al momento de la venta
           });
         }
 
@@ -519,13 +519,9 @@ app.post('/api/timeclock/out', authMiddleware, async (req, res) => {
 // --- SOCKETS ---
 io.on('connection', (socket) => {
     console.log('Un cliente se ha conectado:', socket.id);
-
-    // Unirse a una "sala" específica por mesa
     socket.on('join_table', (tableId) => {
         socket.join(tableId);
-        console.log(`Socket ${socket.id} se unió a la sala de la mesa ${tableId}`);
     });
-
     socket.on('disconnect', () => {
         console.log('Un cliente se ha desconectado:', socket.id);
     });

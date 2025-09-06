@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import ProductModal from '../components/ProductModal';
 import {
-    Container, Typography, Button, Box,
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton
+    Container, Typography, Button, Box, Paper, Chip,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -15,22 +15,22 @@ function ProductsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
 
+    const fetchProducts = async () => {
+        try {
+            const res = await api.get('/products');
+            setProducts(res.data);
+        } catch (error) {
+            // El interceptor de errores ya muestra un toast
+            console.error('Error al obtener los productos:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const res = await api.get('/products');
-                setProducts(res.data);
-            } catch (error) {
-                console.error('Error al obtener los productos:', error);
-                alert('No se pudieron cargar los productos.');
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchProducts();
     }, []);
 
-    // 4. Función para añadir el nuevo producto a la lista
     const handleCreate = () => {
         setEditingProduct(null);
         setIsModalOpen(true);
@@ -45,22 +45,22 @@ function ProductsPage() {
         if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
             try {
                 await api.delete(`/products/${productId}`);
+                // Actualiza la lista de productos después de eliminar
                 setProducts(products.filter((p) => p.id !== productId));
             } catch (error) {
                 console.error('Error al eliminar el producto:', error);
-                alert('No se pudo eliminar el producto.');
             }
         }
     };
 
     const handleProductCreated = (newProduct) => {
-        setProducts([newProduct, ...products]);
+        // Para asegurar que veamos la categoría, recargamos la lista
+        fetchProducts();
     };
 
     const handleProductUpdated = (updatedProduct) => {
-        setProducts(
-            products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
-        );
+        // Para asegurar que veamos los cambios de categoría, recargamos la lista
+        fetchProducts();
     };
 
     const closeModal = () => {
@@ -86,8 +86,11 @@ function ProductsPage() {
                     <TableHead>
                         <TableRow>
                             <TableCell>Nombre</TableCell>
-                            <TableCell align="right">Precio</TableCell>
+                            <TableCell>Categoría</TableCell>
+                            <TableCell align="right">Valor (Venta)</TableCell>
+                            <TableCell align="right">Costo</TableCell>
                             <TableCell align="right">Stock</TableCell>
+                            <TableCell align="center">Estado</TableCell>
                             <TableCell align="center">Acciones</TableCell>
                         </TableRow>
                     </TableHead>
@@ -95,8 +98,17 @@ function ProductsPage() {
                         {products.map((product) => (
                             <TableRow key={product.id}>
                                 <TableCell>{product.name}</TableCell>
+                                <TableCell>{product.category?.name || 'N/A'}</TableCell>
                                 <TableCell align="right">${product.value.toFixed(2)}</TableCell>
+                                <TableCell align="right">${product.cost.toFixed(2)}</TableCell>
                                 <TableCell align="right">{product.stock}</TableCell>
+                                <TableCell align="center">
+                                    <Chip 
+                                        label={product.status} 
+                                        color={product.status === 'ACTIVO' ? 'success' : 'default'} 
+                                        size="small"
+                                    />
+                                </TableCell>
                                 <TableCell align="center">
                                     <IconButton onClick={() => handleEdit(product)} color="primary">
                                         <EditIcon />

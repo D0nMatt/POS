@@ -5,7 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 
 function OrderPanel({ table, products, order, onAddToOrder, onRemoveFromOrder, onClose, onSaveChanges, onFinalize }) {
-    const total = order.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const total = order.reduce((sum, item) => sum + item.value * item.quantity, 0);
 
     return (
         <Drawer anchor="right" open={true} onClose={onClose}>
@@ -20,7 +20,7 @@ function OrderPanel({ table, products, order, onAddToOrder, onRemoveFromOrder, o
                 <List sx={{ overflowY: 'auto', maxHeight: '30%' }}>
                     {products.map(product => (
                         <ListItem key={product.id} secondaryAction={<IconButton edge="end" onClick={() => onAddToOrder(product)}><AddIcon /></IconButton>}>
-                            <ListItemText primary={product.name} secondary={`$${product.price.toFixed(2)}`} />
+                            <ListItemText primary={product.name} secondary={`$${product.value.toFixed(2)}`} />
                         </ListItem>
                     ))}
                 </List>
@@ -33,7 +33,7 @@ function OrderPanel({ table, products, order, onAddToOrder, onRemoveFromOrder, o
                         <ListItem key={item.id}>
                             <ListItemText primary={`${item.name} (x${item.quantity})`} />
                             <IconButton size="small" onClick={() => onRemoveFromOrder(item)}><RemoveIcon /></IconButton>
-                            <Typography sx={{ minWidth: '60px', textAlign: 'right' }}>${(item.price * item.quantity).toFixed(2)}</Typography>
+                            <Typography sx={{ minWidth: '60px', textAlign: 'right' }}>${(item.value * item.quantity).toFixed(2)}</Typography>
                         </ListItem>
                     ))}
                 </List>

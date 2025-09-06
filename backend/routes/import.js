@@ -27,12 +27,12 @@ router.post('/products', [authMiddleware, adminMiddleware, upload.single('file')
             try {
                 const productsToProcess = results.map(item => ({
                     name: item.name,
-                    price: parseFloat(item.price),
+                    price: parseFloat(item.value),
                     stock: parseInt(item.stock, 10),
                 }));
 
                 for (const product of productsToProcess) {
-                    if (!product.name || isNaN(product.price) || isNaN(product.stock)) {
+                    if (!product.name || isNaN(product.value) || isNaN(product.stock)) {
                         throw new Error('El archivo CSV contiene datos inválidos.');
                     }
                 }
