@@ -104,7 +104,7 @@ function ProductModal({ open, onClose, productToEdit, onProductCreated, onProduc
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                     {/* Fila 1 */}
                     <Grid item xs={12} sm={8}>
-                        <TextField name="name" label="Nombre del Producto" value={formData.name} onChange={handleChange} fullWidth required />
+                        <TextField name="name" label="Nombre del Producto" value={formData.name} onChange={handleChange} fullWidth required autoFocus />
                     </Grid>
                     <Grid item xs={12} sm={4}>
                          <FormControl fullWidth required>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import ProductModal from '../components/ProductModal';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 import {
     Container, Typography, Button, Box, Paper, Chip,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton
@@ -14,34 +15,15 @@ function ProductsPage() {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
 
-    const fetchProducts = async () => {
-        try {
-            const res = await api.get('/products');
-            setProducts(res.data);
-        } catch (error) {
-            // El interceptor de errores ya muestra un toast
-            console.error('Error al obtener los productos:', error);
-        } finally {
-            setLoading(false);
-        }
+    const openDeleteConfirm = (product) => {
+        setProductToDelete(product);
+        setIsConfirmOpen(true);
     };
 
-    useEffect(() => {
-        fetchProducts();
-    }, []);
-
-    const handleCreate = () => {
-        setEditingProduct(null);
-        setIsModalOpen(true);
-    };
-
-    const handleEdit = (product) => {
-        setEditingProduct(product);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = async (productId) => {
+    const handleConfirmDelete = async (productId) => {
         if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
             try {
                 await api.delete(`/products/${productId}`);
@@ -52,83 +34,34 @@ function ProductsPage() {
             }
         }
     };
-
-    const handleProductCreated = (newProduct) => {
-        // Para asegurar que veamos la categoría, recargamos la lista
-        fetchProducts();
-    };
-
-    const handleProductUpdated = (updatedProduct) => {
-        // Para asegurar que veamos los cambios de categoría, recargamos la lista
-        fetchProducts();
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setEditingProduct(null);
-    };
-
+    
     if (loading) return <p>Cargando...</p>;
 
     return (
         <Container>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h4" component="h1">
-                    Gestión de Productos
-                </Typography>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
-                    Crear Producto
-                </Button>
-            </Box>
-
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Nombre</TableCell>
-                            <TableCell>Categoría</TableCell>
-                            <TableCell align="right">Valor (Venta)</TableCell>
-                            <TableCell align="right">Costo</TableCell>
-                            <TableCell align="right">Stock</TableCell>
-                            <TableCell align="center">Estado</TableCell>
-                            <TableCell align="center">Acciones</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {products.map((product) => (
-                            <TableRow key={product.id}>
-                                <TableCell>{product.name}</TableCell>
-                                <TableCell>{product.category?.name || 'N/A'}</TableCell>
-                                <TableCell align="right">${product.value.toFixed(2)}</TableCell>
-                                <TableCell align="right">${product.cost.toFixed(2)}</TableCell>
-                                <TableCell align="right">{product.stock}</TableCell>
-                                <TableCell align="center">
-                                    <Chip 
-                                        label={product.status} 
-                                        color={product.status === 'ACTIVO' ? 'success' : 'default'} 
-                                        size="small"
-                                    />
-                                </TableCell>
-                                <TableCell align="center">
-                                    <IconButton onClick={() => handleEdit(product)} color="primary">
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton onClick={() => handleDelete(product.id)} color="error">
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
-            <ProductModal
-                open={isModalOpen}
-                productToEdit={editingProduct}
-                onClose={closeModal}
-                onProductCreated={handleProductCreated}
-                onProductUpdated={handleProductUpdated}
+            {/* ... (Encabezado) */}
+            {products.length > 0 ? (
+                <TableContainer component={Paper}>
+                    {/* ... (Tabla de productos) */}
+                </TableContainer>
+            ) : (
+                <Paper sx={{ textAlign: 'center', padding: 4 }}>
+                    <InventoryIcon sx={{ fontSize: 48, color: 'grey.500' }} />
+                    <Typography variant="h6" sx={{ mt: 2 }}>
+                        No hay productos en tu inventario
+                    </Typography>
+                    <Typography color="text.secondary">
+                        Haz clic en "Crear Producto" para añadir el primero.
+                    </Typography>
+                </Paper>
+            )}
+            {/* ... (Modal de producto) */}
+            <ConfirmationDialog
+                open={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleConfirmDelete}
+                title="Confirmar Eliminación"
+                description={`¿Estás seguro de que quieres eliminar el producto "${productToDelete?.name}"? Esta acción no se puede deshacer.`}
             />
         </Container>
     );

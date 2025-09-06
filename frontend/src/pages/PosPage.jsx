@@ -1,26 +1,27 @@
-import React, { useState, useEffect, useRef, useContext, useCallback, memo } from 'react';
-import api from '../api';
-import toast from 'react-hot-toast';
-import Draggable from 'react-draggable';
-import OrderPanel from '../components/OrderPanel';
-import PaymentModal from '../components/PaymentModal';
-
-import { socket } from '../socket';
-import { ResizableBox } from 'react-resizable';
-import { usePosStore } from '../store/posStore';
+import React, { useState, useEffect, useCallback, useRef, useContext, memo } from 'react';
+import { useTheme } from '@mui/material/styles';
 import { AuthContext } from '../context/AuthContext';
+import api from '../api';
+import Draggable from 'react-draggable';
+import { ResizableBox } from 'react-resizable';
+import OrderPanel from '../components/OrderPanel';
+import { usePosStore } from '../store/posStore';
+import PaymentModal from '../components/PaymentModal';
+import toast from 'react-hot-toast';
 
-const TableComponent = memo(({ table, onDragStop, onResizeStop, onDoubleClick, onClick, isEditMode, isResizing }) => {
+const TableComponent = memo(({ table, onDragStop, onResizeStop, onDoubleClick, onClick, isEditMode, isResizing, isSelected }) => {
     const nodeRef = useRef(null);
+    const theme = useTheme();
 
+    // Estilos mejorados con colores del tema para mayor contraste y feedback
     const style = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 'bold',
         cursor: isEditMode ? 'grab' : 'pointer',
-        backgroundColor: table.status === 'available' ? '#90ee90' : '#f08080',
-        border: '2px solid #333',
+        backgroundColor: table.status === 'available' ? theme.palette.success.light : theme.palette.error.light,
+        border: isSelected ? `3px solid ${theme.palette.primary.main}` : '2px solid #333',
         borderRadius: table.shape === 'circle' ? '50%' : '8px',
         color: 'black',
         width: '100%',
@@ -56,7 +57,6 @@ const TableComponent = memo(({ table, onDragStop, onResizeStop, onDoubleClick, o
 
 function PosPage() {
     const { user } = useContext(AuthContext);
-
     // Estados locales del componente (UI y datos de la página)
     const [tables, setTables] = useState([]);
     const [products, setProducts] = useState([]);
@@ -64,18 +64,7 @@ function PosPage() {
     const [isResizing, setIsResizing] = useState(false);
 
     //Estado para controlar el modal de pago
-    const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
-
-    const {
-        isPanelOpen,
-        selectedTable,
-        currentOrder,
-        currentOrderId,
-        selectTable,
-        addToOrder,
-        removeFromOrder,
-        closePanel
-    } = usePosStore();
+    const { isPanelOpen, selectedTable, currentOrder, currentOrderId, isPaymentModalOpen, closePaymentModal, closePanel, selectTable } = usePosStore();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -93,37 +82,10 @@ function PosPage() {
         fetchData();
     }, []);
 
-    useEffect(() => {
-        socket.connect();
-
-        function onOrderUpdated(updatedOrder) {
-            if (selectedTable && selectedTable.id === updatedOrder.tableId) {
-                toast('El pedido ha sido actualizado por otro usuario.', { icon: '🔄' });
-                const orderItems = updatedOrder.items.map(item => ({ ...item.product, quantity: item.quantity }));
-                selectTable(selectedTable, orderItems, updatedOrder.id);
-            }
-        }
-
-        socket.on('order_updated', onOrderUpdated);
-
-        return () => {
-            socket.off('order_updated', onOrderUpdated);
-            socket.disconnect();
-        };
-    }, [selectedTable, selectTable]);
-
-    useEffect(() => {
-        if (selectedTable) {
-            socket.emit('join_table', selectedTable.id.toString());
-        }
-    }, [selectedTable]);
-
     const handleDragStop = useCallback((e, data, table) => {
-        // Si la posición no cambió, fue un clic, lo maneja el onClick.
         if (data.x === table.x && data.y === table.y) return;
-
         api.put(`/tables/${table.id}/layout`, { x: data.x, y: data.y }).catch(console.error);
-        setTables(prevTables => prevTables.map(t => (t.id === table.id ? { ...t, x: data.x, y: data.y } : t)));
+        setTables(prev => prev.map(t => (t.id === table.id ? { ...t, x: data.x, y: data.y } : t)));
     }, []);
 
     const handleResizeStop = {
@@ -147,37 +109,19 @@ function PosPage() {
     const handleTableClick = useCallback(async (table) => {
         if (isEditMode || isResizing) return;
         if (table.status === 'occupied') {
-            const res = await api.get(`/orders/table/${table.id}`);
-            const orderItems = res.data ? res.data.items.map(item => ({ ...item.product, quantity: item.quantity })) : [];
-            const orderId = res.data ? res.data.id : null;
-            selectTable(table, orderItems, orderId);
+            try {
+                const res = await api.get(`/orders/table/${table.id}`);
+                const orderItems = res.data ? res.data.items.map(item => ({ ...item.product, quantity: item.quantity })) : [];
+                const orderId = res.data ? res.data.id : null;
+                selectTable(table, orderItems, orderId);
+            } catch (error) {
+                toast.error("Error al cargar el pedido.");
+                selectTable(table, [], null);
+            }
         } else {
             selectTable(table, [], null);
         }
     }, [isEditMode, isResizing, selectTable]);
-
-    const handleSaveChanges = useCallback(async () => {
-        if (!selectedTable) return;
-        const orderData = { tableId: selectedTable.id, items: currentOrder.map(item => ({ productId: item.id, quantity: item.quantity })) };
-        const promise = api.post('/orders', orderData);
-        toast.promise(promise, {
-            loading: 'Guardando pedido...',
-            success: () => {
-                setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'occupied' } : t));
-                closePanel();
-                return 'Pedido guardado con éxito.';
-            },
-            error: 'Error al guardar el pedido.',
-        });
-    }, [selectedTable, currentOrder, closePanel]);
-
-    const handleOpenPaymentModal = useCallback(() => {
-        if (!currentOrderId) {
-            toast.error('Guarda los cambios del pedido antes de cobrar.');
-            return;
-        }
-        setPaymentModalOpen(true);
-    }, [currentOrderId]);
 
     const handleProcessPayment = useCallback((paymentData) => {
         const promise = api.put(`/orders/${currentOrderId}/finalize`, paymentData);
@@ -185,21 +129,17 @@ function PosPage() {
             loading: 'Procesando pago...',
             success: () => {
                 setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'available' } : t));
-                setPaymentModalOpen(false);
+                closePaymentModal();
                 closePanel();
                 return '¡Venta completada!';
             },
             error: (err) => err.response?.data?.msg || 'Error al finalizar la venta.',
         });
-    }, [currentOrderId, selectedTable, closePanel]);
+    }, [currentOrderId, selectedTable, setTables, closePaymentModal, closePanel]);
 
-    const handlePanelClose = useCallback(() => {
-        if (currentOrder.length > 0) {
-            handleSaveChanges();
-        } else {
-            closePanel();
-        }
-    }, [currentOrder, handleSaveChanges, closePanel]);
+    const handleSuccessSave = () => {
+        setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'occupied' } : t));
+    };
 
     return (
         <div>
@@ -212,7 +152,7 @@ function PosPage() {
                 )}
             </div>
 
-            <div style={{ height: '80vh', position: 'relative', border: '1px solid #ccc', background: '#f0f0f0' }}>
+            <div style={{ height: '80vh', position: 'relative', border: '1px solid #ccc' }}>
                 {tables.map(table => (
                     <TableComponent
                         key={table.id}
@@ -223,28 +163,23 @@ function PosPage() {
                         onClick={handleTableClick}
                         isEditMode={isEditMode}
                         isResizing={isResizing}
+                        isSelected={selectedTable?.id === table.id}
                     />
                 ))}
             </div>
 
             {isPanelOpen && (
                 <OrderPanel
-                    table={selectedTable}
                     products={products}
-                    order={currentOrder}
-                    onClose={handlePanelClose}
-                    onAddToOrder={addToOrder}
-                    onRemoveFromOrder={removeFromOrder}
-                    onSaveChanges={handleSaveChanges}
-                    onFinalize={handleOpenPaymentModal}
+                    onSuccessSave={handleSuccessSave}
                 />
             )}
 
             {selectedTable && (
                  <PaymentModal
                     open={isPaymentModalOpen}
-                    onClose={() => setPaymentModalOpen(false)}
-                    orderTotal={currentOrder.reduce((sum, item) => sum + item.price * item.quantity, 0)}
+                    onClose={closePaymentModal}
+                    orderTotal={currentOrder.reduce((sum, item) => sum + item.value * item.quantity, 0)}
                     onSubmit={handleProcessPayment}
                 />
             )}
