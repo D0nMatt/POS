@@ -32,9 +32,13 @@ const Navbar = () => {
           {adminMenuOpen && (
             <div className="navbar-dropdown">
               <NavLink to="/dashboard" className="navbar-dropdown-item">Dashboard</NavLink>
+              <NavLink to="/financial-report" className="navbar-dropdown-item">Reporte Financiero</NavLink>
+              <NavLink to="/sales-history" className="navbar-dropdown-item">Historial de Ventas</NavLink>
+              <NavLink to="/transactions-history" className="navbar-dropdown-item">Transacciones</NavLink>
               <NavLink to="/products" className="navbar-dropdown-item">Productos</NavLink>
               <NavLink to="/categories" className="navbar-dropdown-item">Categorías</NavLink>
               <NavLink to="/banks" className="navbar-dropdown-item">Bancos</NavLink>
+              <NavLink to="/expenses" className="navbar-dropdown-item">Gastos</NavLink>
               <NavLink to="/employees" className="navbar-dropdown-item">Empleados</NavLink>
             </div>
           )}

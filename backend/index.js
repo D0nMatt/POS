@@ -39,8 +39,10 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/tables', tablesRoutes);
+app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/banks', require('./routes/banks'));
 app.use('/api/shifts', require('./routes/shifts'));
+app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/categories', categoriesRoutes);
 
 // Rutas

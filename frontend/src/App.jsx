@@ -11,8 +11,11 @@ import PosPage from './pages/PosPage';
 import EmployeesPage from './pages/EmployeesPage';
 import CategoriesPage from './pages/CategoriesPage';
 import BanksPage from './pages/BanksPage';
+import ExpensesPage from './pages/ExpensesPage';
 
 import CashierControlPage from './pages/CashierControlPage';
+import TransactionsHistoryPage from './pages/TransactionsHistoryPage';
+import FinancialReportPage from './pages/FinancialReportPage';
 
 function App() {
   const { token, user } = useContext(AuthContext);
@@ -22,7 +25,7 @@ function App() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
-        /* Redirige cualquier otra ruta a /login */}
+        {/* Redirige cualquier otra ruta a /login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -43,6 +46,9 @@ function App() {
               <Route path="employees" element={<EmployeesPage />} />
               <Route path="categories" element={<CategoriesPage />} />
               <Route path="banks" element={<BanksPage />} />
+              <Route path="expenses" element={<ExpensesPage />} />
+              <Route path="transactions-history" element={<TransactionsHistoryPage />} />
+              <Route path="financial-report" element={<FinancialReportPage />} />
             </>
           )}
         </Route>

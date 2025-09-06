@@ -79,7 +79,7 @@ router.post('/close', authMiddleware, asyncHandler(async (req, res) => {
     const parsedClosingBalance = parseFloat(closingBalance);
 
     const updatedShift = await prisma.$transaction(async (tx) => {
-        // 1. Encontrar el turno activo
+        // Encontrar el turno activo
         const activeShift = await tx.cashShift.findFirst({
             where: { status: 'OPEN' }
         });
@@ -89,7 +89,6 @@ router.post('/close', authMiddleware, asyncHandler(async (req, res) => {
             throw new Error('No hay ningún turno abierto para cerrar.');
         }
 
-        // 2. Encontrar el banco de tipo "Caja" (asumimos uno por ahora)
         const cashRegister = await tx.bank.findFirst({
             where: { type: 'CASH_REGISTER' }
         });
@@ -99,7 +98,7 @@ router.post('/close', authMiddleware, asyncHandler(async (req, res) => {
             throw new Error('No se encontró un banco de tipo "Caja" (CASH_REGISTER).');
         }
 
-        // 3. Calcular el total de ventas en efectivo durante este turno
+        // Calcular el total de ventas en efectivo durante este turno
         const cashSales = await tx.transaction.aggregate({
             _sum: {
                 amount: true,
@@ -113,11 +112,11 @@ router.post('/close', authMiddleware, asyncHandler(async (req, res) => {
 
         const totalCashSales = cashSales._sum.amount || 0;
 
-        // 4. Calcular los montos finales
+        // Calcular los montos finales
         const expectedBalance = activeShift.openingBalance + totalCashSales;
         const difference = parsedClosingBalance - expectedBalance;
 
-        // 5. Actualizar y cerrar el turno
+        // Actualizar y cerrar el turno
         const closedShift = await tx.cashShift.update({
             where: { id: activeShift.id },
             data: {
@@ -129,7 +128,7 @@ router.post('/close', authMiddleware, asyncHandler(async (req, res) => {
             }
         });
 
-        // 6. Crear la transacción de cierre en el banco de la caja
+        // Crear la transacción de cierre en el banco de la caja
         await tx.transaction.create({
             data: {
                 type: 'CLOSING_SHIFT',
@@ -140,7 +139,7 @@ router.post('/close', authMiddleware, asyncHandler(async (req, res) => {
             }
         });
         
-        // 7. Actualizar el saldo del banco "Caja"
+        // Actualizar el saldo del banco "Caja"
         await tx.bank.update({
             where: { id: cashRegister.id },
             data: { balance: { decrement: parsedClosingBalance } }

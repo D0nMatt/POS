@@ -1,8 +1,7 @@
-// routes/dashboard.js
-
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
+const asyncHandler = require('express-async-handler');
 const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
@@ -106,5 +105,79 @@ router.get('/top-products', async (req, res) => {
     }
 });
 
+/**
+ * @route   GET /api/dashboard/financial-summary
+ * @desc    Generar un resumen financiero entre dos fechas
+ * @access  Private (Admin)
+ */
+router.get('/financial-summary', [authMiddleware, adminMiddleware], asyncHandler(async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+        res.status(400);
+        throw new Error('Las fechas de inicio y fin son requeridas.');
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    // Aseguramos que la fecha final incluya todo el día
+    end.setHours(23, 59, 59, 999);
+
+    // 1. Calcular Ingresos Totales (Ventas)
+    const totalSalesResult = await prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+            type: 'SALE',
+            createdAt: { gte: start, lte: end },
+        },
+    });
+    const totalSales = totalSalesResult._sum.amount || 0;
+
+    // 2. Calcular Egresos Totales (Gastos)
+    const totalExpensesResult = await prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+            type: 'EXPENSE',
+            createdAt: { gte: start, lte: end },
+        },
+    });
+    const totalExpenses = totalExpensesResult._sum.amount || 0;
+    
+    // 3. Calcular el Beneficio Neto
+    const netProfit = totalSales - totalExpenses;
+
+    // 4. Desglose de ingresos por banco
+    const salesByBank = await prisma.transaction.groupBy({
+        by: ['bankId'],
+        _sum: { amount: true },
+        where: {
+            type: 'SALE',
+            createdAt: { gte: start, lte: end },
+        },
+    });
+
+    // Para que sea más útil, obtenemos los nombres de los bancos
+    const bankIds = salesByBank.map(item => item.bankId);
+    const banks = await prisma.bank.findMany({
+        where: { id: { in: bankIds } },
+        select: { id: true, name: true },
+    });
+    const bankMap = new Map(banks.map(bank => [bank.id, bank.name]));
+
+    const salesByBankWithName = salesByBank.map(item => ({
+        bankName: bankMap.get(item.bankId),
+        total: item._sum.amount,
+    }));
+
+
+    res.json({
+        totalSales,
+        totalExpenses,
+        netProfit,
+        salesByBank: salesByBankWithName,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+    });
+}));
 
 module.exports = router;
