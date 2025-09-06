@@ -1,33 +1,48 @@
-// index.js
-
-// 1. Importaciones
-const express = require('express');
+require('dotenv').config();
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
-const { body, validationResult } = require('express-validator');
+const http = require('http');
+const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const authMiddleware = require('./middleware/auth');
-const adminMiddleware = require('./middleware/admin');
-const dashboardRoutes = require('./routes/dashboard');
 const importRoutes = require('./routes/import');
 const tablesRoutes = require('./routes/tables');
 const ordersRoutes = require('./routes/orders');
+const authMiddleware = require('./middleware/auth');
+const adminMiddleware = require('./middleware/admin');
+const { errorHandler } = require('./middleware/errorHandler');
+const dashboardRoutes = require('./routes/dashboard');
+const categoriesRoutes = require('./routes/categories');
 
-// 2. Inicializaciones
+const { Server } = require("socket.io");
+const { PrismaClient } = require('@prisma/client');
+const { body, validationResult } = require('express-validator');
+
 const app = express();
 const prisma = new PrismaClient();
+const server = http.createServer(app); // Creamos un servidor HTTP a partir de la app de Express
+const io = new Server(server, { // Inicializamos socket.io
+    cors: {
+        origin: "http://localhost:3001", // Reemplaza con la URL de tu frontend
+        methods: ["GET", "POST"]
+    }
+});
 
-// 3. Middlewares
+
+// Middlewares
 app.use(express.json());
 app.use(cors());
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/tables', tablesRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
-// 4. Rutas
-// Ruta para registrar usuarios
+// Rutas
+// --- RUTA PARA REGISTRAR USUARIOS ---
 app.post(
   '/api/users',
   [
@@ -64,7 +79,7 @@ app.post(
   }
 );
 
-// --- NUEVA RUTA PARA INICIAR SESIÓN (LOGIN) ---
+// --- RUTA PARA INICIAR SESIÓN (LOGIN) ---
 app.post(
   '/api/auth/login',
   [
@@ -124,16 +139,17 @@ app.post(
   }
 );
 
-// --- NUEVA RUTA PROTEGIDA PARA AÑADIR PRODUCTOS ---
+// --- RUTA PROTEGIDA PARA AÑADIR PRODUCTOS ---
 app.post(
   '/api/products',
   [
-    authMiddleware, // ¡Aquí está nuestro guardia de seguridad!
+    authMiddleware,
+    adminMiddleware,
     [
-      // Validaciones para los datos del producto
-      body('name').notEmpty().withMessage('El nombre es requerido'),
-      body('price').isFloat({ gt: 0 }).withMessage('El precio debe ser un número positivo'),
-      body('stock').isInt({ gt: -1 }).withMessage('El stock debe ser un número entero no negativo'),
+      body('name').notEmpty(),
+      body('value').isFloat({ gt: 0 }),
+      body('cost').isFloat({ gte: 0 }),
+      body('categoryId').isInt(),
     ],
   ],
   async (req, res) => {
@@ -142,47 +158,57 @@ app.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, price, stock } = req.body;
+    const { 
+        name, productType, status, value, cost, stock, 
+        minStock, maxStock, categoryId, sku, description, imageUrl, unit 
+    } = req.body;
 
     try {
-      // Verificar si ya existe un producto con el mismo nombre
-      const productExists = await prisma.product.findUnique({ where: { name } });
-      if (productExists) {
-        return res.status(400).json({ msg: 'Ya existe un producto con ese nombre' });
-      }
-
-      // Crear el nuevo producto
       const product = await prisma.product.create({
         data: {
           name,
-          price,
-          stock,
+          productType,
+          status,
+          value,
+          cost,
+          stock: stock || 0,
+          minStock,
+          maxStock,
+          categoryId,
+          sku,
+          description,
+          imageUrl,
+          unit
         }
       });
-
       res.status(201).json(product);
-
     } catch (err) {
-      console.error(err.message);
+      if (err.code === 'P2002') {
+        return res.status(400).json({ msg: `Ya existe un producto con ese ${err.meta.target.includes('name') ? 'nombre' : 'SKU'}.` });
+      }
       res.status(500).send('Error en el servidor');
     }
   }
 );
 
-// --- NUEVA RUTA PARA CONSULTAR TODOS LOS PRODUCTOS
+// --- RUTA PARA CONSULTAR TODOS LOS PRODUCTOS
 app.get('/api/products', async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      orderBy: { createdAt: 'desc' } // Opcional: muestra los más nuevos primero
+      include: {
+        category: { 
+          select: { name: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     res.json(products);
   } catch (err) {
-    console.error(err.message);
     res.status(500).send('Error en el servidor');
   }
 });
 
-// --- NUEVA RUTA PARA CONSULTAR UN PRODUCTO
+// --- RUTA PARA CONSULTAR UN PRODUCTO
 app.get('/api/products/:id', async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
@@ -201,32 +227,34 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 
-// --- NUEVA RUTA PARA ACTUALIZAR UN PRODUCTO
-app.put('/api/products/:id', authMiddleware, async (req, res) => {
-  const { name, price, stock } = req.body;
+// --- RUTA PARA ACTUALIZAR UN PRODUCTO
+app.put('/api/products/:id', [authMiddleware, adminMiddleware], async (req, res) => {
   try {
-    let product = await prisma.product.findUnique({
-      where: { id: parseInt(req.params.id) }
+    const productId = parseInt(req.params.id);
+    const { 
+        name, productType, status, value, cost, stock, 
+        minStock, maxStock, categoryId, sku, description, imageUrl, unit 
+    } = req.body;
+    
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: {
+        name, productType, status, value, cost, stock, 
+        minStock, maxStock, categoryId, sku, description, imageUrl, unit
+      }
     });
 
-    if (!product) {
-      return res.status(404).json({ msg: 'Producto no encontrado' });
-    }
-
-    product = await prisma.product.update({
-      where: { id: parseInt(req.params.id) },
-      data: { name, price, stock }
-    });
-
-    res.json(product);
+    res.json(updatedProduct);
   } catch (err) {
-    console.error(err.message);
+    if (err.code === 'P2002') {
+        return res.status(400).json({ msg: `Ya existe un producto con ese ${err.meta.target.includes('name') ? 'nombre' : 'SKU'}.` });
+    }
     res.status(500).send('Error en el servidor');
   }
 });
 
 
-// --- NUEVA RUTA PARA ELIMINAR UN PRODUCTO
+// --- RUTA PARA ELIMINAR UN PRODUCTO
 app.delete('/api/products/:id', authMiddleware, async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
@@ -249,7 +277,7 @@ app.delete('/api/products/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// --- NUEVA RUTA PARA REGISTRAR UNA VENTA ---
+// --- RUTA PARA REGISTRAR UNA VENTA ---
 app.post(
   '/api/sales',
   [
@@ -335,7 +363,7 @@ app.post(
   }
 );
 
-// --- NUEVA RUTA PARA CONSULTAR TODOS LOS TRABAJADORES ---
+// --- RUTA PARA CONSULTAR TODOS LOS TRABAJADORES ---
 app.get('/api/employees', [authMiddleware, adminMiddleware], async (req, res) => {
   try {
     const employees = await prisma.user.findMany({
@@ -348,7 +376,7 @@ app.get('/api/employees', [authMiddleware, adminMiddleware], async (req, res) =>
   }
 });
 
-// --- NUEVA RUTA PARA EDITAR UN TRABAJADOR (NOMBRE Y EMAIL) ---
+// --- RUTA PARA EDITAR UN TRABAJADOR (NOMBRE Y EMAIL) ---
 app.put('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, res) => {
     const { name, email } = req.body;
     try {
@@ -363,7 +391,7 @@ app.put('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, res
     }
 });
 
-// --- NUEVA RUTA PARA CREAR UN NUEVO TRABAJADOR ---
+// --- RUTA PARA CREAR UN NUEVO TRABAJADOR ---
 app.post('/api/employees', [authMiddleware, adminMiddleware, [
   body('email').isEmail(),
   body('name').notEmpty(),
@@ -401,7 +429,7 @@ app.post('/api/employees', [authMiddleware, adminMiddleware, [
   }
 });
 
-// --- NUEVA RUTA PARA ELIMINAR UN TRABAJADOR ---
+// --- RUTA PARA ELIMINAR UN TRABAJADOR ---
 app.delete('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, res) => {
   try {
     const employeeId = parseInt(req.params.id);
@@ -424,7 +452,7 @@ app.delete('/api/employees/:id', [authMiddleware, adminMiddleware], async (req, 
   }
 });
 
-// Iniciar turno (Clock In)
+// --- RUTA PARA INICIAR TURNO (CLOCK IN) ---
 app.post('/api/timeclock/in', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   try {
@@ -455,7 +483,7 @@ app.post('/api/timeclock/in', authMiddleware, async (req, res) => {
   }
 });
 
-// Finalizar turno (Clock Out)
+// --- RUTA PARA FINALIZAR TURNO (CLOCK OUT) ---
 app.post('/api/timeclock/out', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   try {
@@ -488,8 +516,24 @@ app.post('/api/timeclock/out', authMiddleware, async (req, res) => {
   }
 });
 
-// 5. Iniciar el Servidor
+// --- SOCKETS ---
+io.on('connection', (socket) => {
+    console.log('Un cliente se ha conectado:', socket.id);
+
+    // Unirse a una "sala" específica por mesa
+    socket.on('join_table', (tableId) => {
+        socket.join(tableId);
+        console.log(`Socket ${socket.id} se unió a la sala de la mesa ${tableId}`);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Un cliente se ha desconectado:', socket.id);
+    });
+});
+
+//Iniciar el Servidor
+app.use(errorHandler);
 const PORT = 3001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
-}); 
+});

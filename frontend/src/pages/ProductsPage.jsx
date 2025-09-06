@@ -95,7 +95,7 @@ function ProductsPage() {
                         {products.map((product) => (
                             <TableRow key={product.id}>
                                 <TableCell>{product.name}</TableCell>
-                                <TableCell align="right">${product.price.toFixed(2)}</TableCell>
+                                <TableCell align="right">${product.value.toFixed(2)}</TableCell>
                                 <TableCell align="right">{product.stock}</TableCell>
                                 <TableCell align="center">
                                     <IconButton onClick={() => handleEdit(product)} color="primary">

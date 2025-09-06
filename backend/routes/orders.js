@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/auth');
 
 const prisma = new PrismaClient();
 
-// Obtener el pedido abierto de una mesa específica
+// --- CONSULTA PEDIDO DE LA MESA ---
 router.get('/table/:tableId', authMiddleware, async (req, res) => {
     try {
         const order = await prisma.sale.findFirst({
@@ -21,10 +21,11 @@ router.get('/table/:tableId', authMiddleware, async (req, res) => {
     }
 });
 
-// Crear o actualizar un pedido para una mesa
+// --- ACTUALIZA PEDIDO DE LA MESA ---
 router.post('/', authMiddleware, async (req, res) => {
     const { tableId, items } = req.body;
     const userId = req.user.id;
+    const { io } = req;
 
     try {
         const txResult = await prisma.$transaction(async (tx) => {
@@ -32,14 +33,13 @@ router.post('/', authMiddleware, async (req, res) => {
             const productIds = items.map(item => item.productId);
             const products = await tx.product.findMany({ where: { id: { in: productIds } } });
 
-            const updateStockPromises = items.map(item =>
-                tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: { decrement: item.quantity } },
-                })
-            );
-
-            await Promise.all(updateStockPromises);
+            for (const item of items) {
+                const product = products.find(p => p.id === item.productId);
+                if (!product) throw new Error(`Producto con ID ${item.productId} no encontrado.`);
+                // Este chequeo de stock podría mejorarse para evitar condiciones de carrera, pero es funcional.
+                if (product.stock < item.quantity) throw new Error(`Stock insuficiente para ${product.name}.`);
+                totalSaleAmount += product.price * item.quantity;
+            }
 
             const existingOrder = await tx.sale.findFirst({
                 where: { tableId, status: 'PENDING' },
@@ -61,25 +61,40 @@ router.post('/', authMiddleware, async (req, res) => {
                 })),
             });
 
-            const stockUpdates = items.map(item =>
-                tx.product.update({
+            for (const item of items) {
+                await tx.product.update({
                     where: { id: item.productId },
                     data: { stock: { decrement: item.quantity } },
-                })
-            );
-            await Promise.all(stockUpdates);
+                });
+            }
 
             await tx.table.update({ where: { id: tableId }, data: { status: 'occupied' } });
-            return sale;
+
+            // Obtenemos el pedido completo con sus detalles para enviarlo por socket
+            const updatedOrder = await tx.sale.findUnique({
+                where: { id: sale.id },
+                include: { items: { include: { product: true } } },
+            });
+
+            return updatedOrder;
         });
+        io.to(tableId.toString()).emit('order_updated', txResult);
         res.status(201).json(txResult);
     } catch (err) {
         res.status(400).json({ msg: err.message });
     }
 });
 
-// Finalizar un pedido (marcarlo como pagado)
+// --- FINALIZAR PEDIDO (LO PAGA Y REGISTRA EL PAGO) ---
 router.put('/:orderId/finalize', authMiddleware, async (req, res) => {
+    const { paymentMethod, amountPaid, changeGiven } = req.body;
+    const orderId = parseInt(req.params.orderId);
+
+    // Validación básica
+    if (!paymentMethod || amountPaid == null) {
+        return res.status(400).json({ msg: 'Faltan detalles del pago.' });
+    }
+
     try {
         const orderId = parseInt(req.params.orderId);
         const order = await prisma.sale.findUnique({ where: { id: orderId } });

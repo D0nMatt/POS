@@ -24,17 +24,44 @@ model User {
   timeClock TimeClock[]
 }
 
+// --- MODELO PARA LAS CATEGORÍAS DE PRODUCTOS ---
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique 
+  createdAt DateTime @default(now())
+
+  products  Product[]
+}
+
 // ========= MODELOS PARA LOS PRODUCTOS =========
 
 model Product {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique // El nombre del producto debe ser único
-  price     Float // Precio de venta del producto
-  stock     Int      @default(0) // Cantidad de unidades en inventario
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt // Se actualiza automáticamente al modificar
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  
+  // --- Campos solicitados ---
+  productType    String   @default("PRODUCTO") // TIPO_PRODUCTO: "PRODUCTO", "CONSUMIBLE", "SERVICIO", "ADICION"
+  status         String   @default("ACTIVO")   // ESTADO: "ACTIVO", "INACTIVO"
+  value          Float                         // VALOR (Precio de venta)
+  cost           Float    @default(0)           // COSTO
+  stock          Int      @default(0)           // Se mantiene el stock actual
+  minStock       Int?                          // STOCK_MINIMO (Opcional)
+  maxStock       Int?                          // STOCK_MAXIMO (Opcional)
+  
+  // Relación con CATEGORIA
+  categoryId     Int
+  category       Category? @relation(fields: [categoryId], references: [id])
 
-  saleItems SaleItem[] // Un producto puede estar en muchos items de venta
+  // --- Campos para un mejor funcionamiento ---
+  sku            String?  @unique // (Stock Keeping Unit) Código único para el producto (para EAN, QR, etc.)
+  description    String?  // Descripción detallada del producto
+  imageUrl       String?  // URL para la imagen del producto
+  unit           String   @default("unit") // Unidad de medida: "unit", "kg", "liter"
+  
+  // Timestamps y relaciones existentes
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  saleItems      SaleItem[]
 }
 
 // ========= MODELOS PARA LAS VENTAS =========
@@ -43,7 +70,11 @@ model Sale {
   id        Int      @id @default(autoincrement())
   total     Float // Monto total de la venta
   createdAt DateTime @default(now())
-  status    String   @default("PENDING") // NUEVO CAMPO: "PENDING" o "COMPLETED"
+  status    String   @default("PENDING") // "PENDING" o "COMPLETED"
+
+  paymentMethod String?  // "CASH", "CARD" (Opcional hasta que se finalice)
+  amountPaid    Float?   // Monto que el cliente pagó
+  changeGiven   Float?   // Cambio devuelto al cliente
 
   userId Int // Clave foránea para el usuario
   user   User @relation(fields: [userId], references: [id]) // Relación con el usuario

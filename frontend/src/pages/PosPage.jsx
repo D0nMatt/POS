@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useContext, useCallback, memo } from 'react';
-import { AuthContext } from '../context/AuthContext';
 import api from '../api';
-import Draggable from 'react-draggable';
-import { ResizableBox } from 'react-resizable';
-import OrderPanel from '../components/OrderPanel';
-import { usePosStore } from '../store/posStore';
 import toast from 'react-hot-toast';
+import Draggable from 'react-draggable';
+import OrderPanel from '../components/OrderPanel';
+import PaymentModal from '../components/PaymentModal';
+
+import { socket } from '../socket';
+import { ResizableBox } from 'react-resizable';
+import { usePosStore } from '../store/posStore';
+import { AuthContext } from '../context/AuthContext';
 
 const TableComponent = memo(({ table, onDragStop, onResizeStop, onDoubleClick, onClick, isEditMode, isResizing }) => {
     const nodeRef = useRef(null);
@@ -60,9 +63,8 @@ function PosPage() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
 
-    /*const lastClickTime = useRef(0);
-    const [currentOrderId, setCurrentOrderId] = useState(null);
-    const { isPanelOpen, selectedTable, currentOrder, selectTable, addToOrder, removeFromOrder, closePanel } = usePosStore();*/
+    //Estado para controlar el modal de pago
+    const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
 
     const {
         isPanelOpen,
@@ -86,11 +88,35 @@ function PosPage() {
                 setProducts(productsRes.data);
             } catch (error) {
                 toast.error("Error al cargar datos iniciales.");
-                console.error("Error al cargar datos:", error);
             }
         };
         fetchData();
     }, []);
+
+    useEffect(() => {
+        socket.connect();
+
+        function onOrderUpdated(updatedOrder) {
+            if (selectedTable && selectedTable.id === updatedOrder.tableId) {
+                toast('El pedido ha sido actualizado por otro usuario.', { icon: '🔄' });
+                const orderItems = updatedOrder.items.map(item => ({ ...item.product, quantity: item.quantity }));
+                selectTable(selectedTable, orderItems, updatedOrder.id);
+            }
+        }
+
+        socket.on('order_updated', onOrderUpdated);
+
+        return () => {
+            socket.off('order_updated', onOrderUpdated);
+            socket.disconnect();
+        };
+    }, [selectedTable, selectTable]);
+
+    useEffect(() => {
+        if (selectedTable) {
+            socket.emit('join_table', selectedTable.id.toString());
+        }
+    }, [selectedTable]);
 
     const handleDragStop = useCallback((e, data, table) => {
         // Si la posición no cambió, fue un clic, lo maneja el onClick.
@@ -100,17 +126,13 @@ function PosPage() {
         setTables(prevTables => prevTables.map(t => (t.id === table.id ? { ...t, x: data.x, y: data.y } : t)));
     }, []);
 
-    const handleResizeStart = () => {
-        setIsResizing(true);
-    };
-
     const handleResizeStop = {
         start: () => setIsResizing(true),
         stop: (e, data, table) => {
             setIsResizing(false);
             const { width, height } = data.size;
             api.put(`/tables/${table.id}/layout`, { width, height, x: table.x, y: table.y }).catch(console.error);
-            setTables(prevTables => prevTables.map(t => (t.id === table.id ? { ...t, width, height } : t)));
+            setTables(prev => prev.map(t => (t.id === table.id ? { ...t, width, height } : t)));
         }
     };
 
@@ -118,97 +140,66 @@ function PosPage() {
         if (!isEditMode) return;
         const newShape = table.shape === 'square' ? 'circle' : 'square';
         api.put(`/tables/${table.id}/shape`, { shape: newShape }).catch(console.error);
-        setTables(prevTables =>
-            prevTables.map(t => (t.id === table.id ? { ...t, shape: newShape } : t))
-        );
+        setTables(prev => prev.map(t => (t.id === table.id ? { ...t, shape: newShape } : t)));
     }, [isEditMode]);
 
     //Función para manejar el clic en una mesa
     const handleTableClick = useCallback(async (table) => {
         if (isEditMode || isResizing) return;
-
         if (table.status === 'occupied') {
-            try {
-                const res = await api.get(`/orders/table/${table.id}`);
-                const orderItems = res.data ? res.data.items.map(item => ({ ...item.product, quantity: item.quantity })) : [];
-                const orderId = res.data ? res.data.id : null;
-                selectTable(table, orderItems, orderId);
-            } catch (error) {
-                toast.error("Error al cargar el pedido de la mesa.");
-                selectTable(table, [], null);
-            }
+            const res = await api.get(`/orders/table/${table.id}`);
+            const orderItems = res.data ? res.data.items.map(item => ({ ...item.product, quantity: item.quantity })) : [];
+            const orderId = res.data ? res.data.id : null;
+            selectTable(table, orderItems, orderId);
         } else {
             selectTable(table, [], null);
         }
     }, [isEditMode, isResizing, selectTable]);
 
-    const handleAddToOrder = (product) => {
-        setCurrentOrder(prevOrder => {
-            const existingItem = prevOrder.find(item => item.id === product.id);
-            if (existingItem) {
-                // incrementa la cantidad
-                return prevOrder.map(item =>
-                    item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-                );
-            }
-            // añáde con cantidad 1
-            return [...prevOrder, { ...product, quantity: 1 }];
-        });
-    };
-
-    const handleRemoveFromOrder = (product) => {
-        setCurrentOrder(prevOrder => {
-            const existingItem = prevOrder.find(item => item.id === product.id);
-            if (existingItem.quantity === 1) {
-                // Si solo queda uno, elimínalo de la lista
-                return prevOrder.filter(item => item.id !== product.id);
-            }
-            // Si hay más de uno, decrementa la cantidad
-            return prevOrder.map(item =>
-                item.id === product.id ? { ...item, quantity: item.quantity - 1 } : item
-            );
-        });
-    };
-
     const handleSaveChanges = useCallback(async () => {
         if (!selectedTable) return;
-
-        const orderData = {
-            tableId: selectedTable.id,
-            items: currentOrder.map(item => ({ productId: item.id, quantity: item.quantity })),
-        };
-
+        const orderData = { tableId: selectedTable.id, items: currentOrder.map(item => ({ productId: item.id, quantity: item.quantity })) };
         const promise = api.post('/orders', orderData);
-
         toast.promise(promise, {
             loading: 'Guardando pedido...',
-            success: (res) => {
+            success: () => {
                 setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'occupied' } : t));
-                closePanel(); // Cierra el panel a través del store
+                closePanel();
                 return 'Pedido guardado con éxito.';
             },
             error: 'Error al guardar el pedido.',
         });
     }, [selectedTable, currentOrder, closePanel]);
 
-    const handleFinalize = useCallback(async () => {
+    const handleOpenPaymentModal = useCallback(() => {
         if (!currentOrderId) {
-            toast.error('Este pedido aún no se ha guardado. Guarda los cambios primero.');
+            toast.error('Guarda los cambios del pedido antes de cobrar.');
             return;
         }
+        setPaymentModalOpen(true);
+    }, [currentOrderId]);
 
-        const promise = api.put(`/orders/${currentOrderId}/finalize`);
-
+    const handleProcessPayment = useCallback((paymentData) => {
+        const promise = api.put(`/orders/${currentOrderId}/finalize`, paymentData);
         toast.promise(promise, {
-            loading: 'Finalizando venta...',
+            loading: 'Procesando pago...',
             success: () => {
                 setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'available' } : t));
+                setPaymentModalOpen(false);
                 closePanel();
                 return '¡Venta completada!';
             },
-            error: 'Error al finalizar la venta.',
+            error: (err) => err.response?.data?.msg || 'Error al finalizar la venta.',
         });
     }, [currentOrderId, selectedTable, closePanel]);
+
+    const handlePanelClose = useCallback(() => {
+        if (currentOrder.length > 0) {
+            handleSaveChanges();
+        } else {
+            closePanel();
+        }
+    }, [currentOrder, handleSaveChanges, closePanel]);
 
     return (
         <div>
@@ -236,17 +227,25 @@ function PosPage() {
                 ))}
             </div>
 
-            {/* El panel controlado por el Zustand */}
             {isPanelOpen && (
                 <OrderPanel
                     table={selectedTable}
                     products={products}
                     order={currentOrder}
-                    onClose={closePanel}
+                    onClose={handlePanelClose}
                     onAddToOrder={addToOrder}
                     onRemoveFromOrder={removeFromOrder}
                     onSaveChanges={handleSaveChanges}
-                    onFinalize={handleFinalize}
+                    onFinalize={handleOpenPaymentModal}
+                />
+            )}
+
+            {selectedTable && (
+                 <PaymentModal
+                    open={isPaymentModalOpen}
+                    onClose={() => setPaymentModalOpen(false)}
+                    orderTotal={currentOrder.reduce((sum, item) => sum + item.price * item.quantity, 0)}
+                    onSubmit={handleProcessPayment}
                 />
             )}
         </div>

@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard';
 import ProductsPage from './pages/ProductsPage';
 import PosPage from './pages/PosPage';
 import EmployeesPage from './pages/EmployeesPage';
+import CategoriesPage from './pages/CategoriesPage';
 
 function App() {
   const { token, user } = useContext(AuthContext);
@@ -36,7 +37,8 @@ function App() {
           {user?.role === 'ADMIN' && (
             <>
               <Route path="products" element={<ProductsPage />} />
-              <Route path="employees" element={<EmployeesPage />} /> {/* 2. Añade la nueva ruta */}
+              <Route path="employees" element={<EmployeesPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
             </>
           )}
         </Route>

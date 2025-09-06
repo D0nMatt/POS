@@ -22,9 +22,9 @@ const Navbar = () => {
 
       <div className="navbar-section">
         {/* --- Menú de Administración --- */}
-        <div 
+        <div
           className="navbar-menu-container"
-          onMouseEnter={() => setAdminMenuOpen(true)} 
+          onMouseEnter={() => setAdminMenuOpen(true)}
           onMouseLeave={() => setAdminMenuOpen(false)}
         >
           <span className="navbar-link">Administración</span>
@@ -32,27 +32,28 @@ const Navbar = () => {
             <div className="navbar-dropdown">
               <NavLink to="/dashboard" className="navbar-dropdown-item">Dashboard</NavLink>
               <NavLink to="/products" className="navbar-dropdown-item">Productos</NavLink>
+              <NavLink to="/categories" className="navbar-dropdown-item">Categorías</NavLink>
               <NavLink to="/employees" className="navbar-dropdown-item">Empleados</NavLink>
             </div>
           )}
         </div>
 
         {/* --- Menú de Perfil de Usuario --- */}
-         {user && (
-          <div 
+        {user && (
+          <div
             className="navbar-menu-container"
-            onMouseEnter={() => setUserMenuOpen(true)} 
+            onMouseEnter={() => setUserMenuOpen(true)}
             onMouseLeave={() => setUserMenuOpen(false)}
           >
             <div className="navbar-link">
-               Hola, {user.name}
+              Hola, {user.name}
             </div>
             {userMenuOpen && (
-                <div className="navbar-dropdown">
-                    <button onClick={handleLogout} className="navbar-dropdown-button">
-                        Cerrar Sesión
-                    </button>
-                </div>
+              <div className="navbar-dropdown">
+                <button onClick={handleLogout} className="navbar-dropdown-button">
+                  Cerrar Sesión
+                </button>
+              </div>
             )}
           </div>
         )}
