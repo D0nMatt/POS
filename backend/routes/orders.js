@@ -32,12 +32,14 @@ router.post('/', authMiddleware, async (req, res) => {
             const productIds = items.map(item => item.productId);
             const products = await tx.product.findMany({ where: { id: { in: productIds } } });
 
-            for (const item of items) {
-                const product = products.find(p => p.id === item.productId);
-                if (!product) throw new Error(`Producto con ID ${item.productId} no encontrado.`);
-                if (product.stock < item.quantity) throw new Error(`Stock insuficiente para ${product.name}.`);
-                totalSaleAmount += product.price * item.quantity;
-            }
+            const updateStockPromises = items.map(item =>
+                tx.product.update({
+                    where: { id: item.productId },
+                    data: { stock: { decrement: item.quantity } },
+                })
+            );
+
+            await Promise.all(updateStockPromises);
 
             const existingOrder = await tx.sale.findFirst({
                 where: { tableId, status: 'PENDING' },

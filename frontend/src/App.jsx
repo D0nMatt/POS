@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
 
 import Layout from './components/Layout';
 import Login from './components/Login';
@@ -24,21 +25,24 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="pos" element={<PosPage />} />
+    <>
+      <Toaster position="top-center" reverseOrder={false} />
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="pos" element={<PosPage />} />
 
-        {/* Rutas solo para Admin */}
-        {user?.role === 'ADMIN' && (
-          <>
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="employees" element={<EmployeesPage />} /> {/* 2. Añade la nueva ruta */}
-          </>
-        )}
-      </Route>
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+          {/* Rutas solo para Admin */}
+          {user?.role === 'ADMIN' && (
+            <>
+              <Route path="products" element={<ProductsPage />} />
+              <Route path="employees" element={<EmployeesPage />} /> {/* 2. Añade la nueva ruta */}
+            </>
+          )}
+        </Route>
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
   );
 }
 
