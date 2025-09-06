@@ -15,3 +15,134 @@
   box-sizing: border-box;
   cursor: se-resize;
 }
+
+.app-layout {
+  /* Puedes añadir un color de fondo para toda la app si quieres */
+  background-color: #f7fafc; 
+  min-height: 100vh;
+}
+
+.main-content {
+  /* La altura de la navbar (60px) + un poco de espacio (1.5rem) */
+  padding-top: calc(60px + 1.5rem); 
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+/* === Estilos de la Navbar Elegante === */
+
+/* --- Contenedor Principal --- */
+.navbar-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  background-color: #1a202c; /* Negro corporativo */
+  color: white;
+  height: 60px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-sizing: border-box;
+  border-bottom: 1px solid #2d3748; /* Línea sutil para separar del contenido */
+}
+
+.navbar-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* --- Enlaces y Botón Principal (CTA) --- */
+.navbar-link {
+  color: #a0aec0; /* Gris suave para texto no activo */
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s ease-in-out;
+}
+.navbar-link:hover {
+  color: #ffffff; /* Blanco puro al pasar el ratón */
+}
+
+.navbar-cta-button {
+  background-color: #38a169; /* Verde más vibrante */
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background-color 0.2s ease-in-out;
+}
+.navbar-cta-button:hover {
+  background-color: #2f855a; /* Verde más oscuro al pasar el ratón */
+}
+
+
+/* --- Estilos del Menú Desplegable (Aquí está la magia) --- */
+.navbar-menu-container {
+  position: relative;
+}
+
+.navbar-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 200px;
+  background-color: #2d3748; /* Un gris ligeramente más claro que la navbar */
+  border-radius: 8px; /* Bordes más redondeados */
+  border: 1px solid #4a5568; /* Borde sutil para definir el contenedor */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.15); /* Sombra más pronunciada */
+  z-index: 1001;
+  padding: 0.5rem 0;
+
+  overflow: hidden;
+  
+  /* La transición para la aparición suave */
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* --- Animación de Aparición --- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Ítems del Desplegable --- */
+.navbar-dropdown-item, .navbar-dropdown-button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  color: #e2e8f0; /* Un blanco menos intenso que el principal */
+  text-decoration: none;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+.navbar-dropdown-item:hover, .navbar-dropdown-button:hover {
+  background-color: #4a5568; /* Color de fondo al pasar el ratón */
+  color: #ffffff; /* Blanco puro para el texto activo */
+}
+
+.navbar-dropdown .navbar-dropdown-item:first-child:hover,
+.navbar-dropdown .navbar-dropdown-button:first-child:hover {
+    overflow: hidden
+}
+
+.navbar-dropdown .navbar-dropdown-item:last-child:hover,
+.navbar-dropdown .navbar-dropdown-button:last-child:hover {
+    overflow: hidden
+}

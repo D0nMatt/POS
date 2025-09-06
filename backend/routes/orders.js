@@ -59,12 +59,13 @@ router.post('/', authMiddleware, async (req, res) => {
                 })),
             });
 
-            for (const item of items) {
-                 await tx.product.update({
+            const stockUpdates = items.map(item =>
+                tx.product.update({
                     where: { id: item.productId },
                     data: { stock: { decrement: item.quantity } },
-                 });
-            }
+                })
+            );
+            await Promise.all(stockUpdates);
 
             await tx.table.update({ where: { id: tableId }, data: { status: 'occupied' } });
             return sale;

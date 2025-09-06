@@ -1,63 +1,53 @@
 import React from 'react';
+import { Drawer, Box, Typography, List, ListItem, ListItemText, IconButton, Button, Divider } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 
 function OrderPanel({ table, products, order, onAddToOrder, onRemoveFromOrder, onClose, onSaveChanges, onFinalize }) {
     const total = order.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    // Estilos para el panel
-    const panelStyle = {
-        position: 'fixed', top: 0, right: 0, width: '350px', height: '100vh',
-        background: '#f4f4f4', borderLeft: '1px solid #ccc',
-        boxShadow: '-2px 0 5px rgba(0,0,0,0.1)', padding: '1rem',
-        boxSizing: 'border-box', overflowY: 'auto'
-    };
-
-    const productListStyle = { listStyle: 'none', padding: 0 };
-    const productItemStyle = { display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' };
 
     return (
-        <div style={panelStyle}>
-            <button onClick={onClose} style={{ float: 'right' }}>X</button>
-            <h3>Pedido para: {table.name}</h3>
-            <hr />
+        <Drawer anchor="right" open={true} onClose={onClose}>
+            <Box sx={{ width: 350, padding: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">Pedido para: {table.name}</Typography>
+                    <IconButton onClick={onClose}><CloseIcon /></IconButton>
+                </Box>
+                <Divider sx={{ my: 1 }} />
 
-            <h4>Menú de Productos</h4>
-            <ul style={productListStyle}>
-                {products.map(product => (
-                    <li key={product.id} style={productItemStyle}>
-                        <span>{product.name} - ${product.price}</span>
-                        <button onClick={() => onAddToOrder(product)}>+</button>
-                    </li>
-                ))}
-            </ul>
-            <hr />
-
-            <h4>Pedido Actual</h4>
-            {order.length === 0 ? (
-                <p>Añade productos del menú.</p>
-            ) : (
-                <ul style={productListStyle}>
-                    {order.map(item => (
-                        <li key={item.id} style={productItemStyle}>
-                            <span>{item.name} (x{item.quantity})</span>
-                            <span>
-                                ${(item.price * item.quantity).toFixed(2)}
-                                <button onClick={() => onRemoveFromOrder(item)} style={{ marginLeft: '10px' }}>-</button>
-                            </span>
-                        </li>
+                <Typography variant="subtitle1">Menú</Typography>
+                <List sx={{ overflowY: 'auto', maxHeight: '30%' }}>
+                    {products.map(product => (
+                        <ListItem key={product.id} secondaryAction={<IconButton edge="end" onClick={() => onAddToOrder(product)}><AddIcon /></IconButton>}>
+                            <ListItemText primary={product.name} secondary={`$${product.price.toFixed(2)}`} />
+                        </ListItem>
                     ))}
-                </ul>
-            )}
+                </List>
+                <Divider sx={{ my: 1 }} />
 
-            <hr />
-            <h3>Total: ${total.toFixed(2)}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <button onClick={onSaveChanges} style={{ padding: '0.8rem', background: '#007bff', color: 'white' }}>
-                    Guardar Cambios
-                </button>
-                <button onClick={onFinalize} disabled={order.length === 0} style={{ padding: '0.8rem', background: '#28a745', color: 'white' }}>
-                    Cobrar y Liberar Mesa
-                </button>
-            </div>
-        </div>
+                <Typography variant="subtitle1">Pedido Actual</Typography>
+                <List sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                    {order.length === 0 ? <ListItem><ListItemText primary="Añade productos del menú." /></ListItem> : null}
+                    {order.map(item => (
+                        <ListItem key={item.id}>
+                            <ListItemText primary={`${item.name} (x${item.quantity})`} />
+                            <IconButton size="small" onClick={() => onRemoveFromOrder(item)}><RemoveIcon /></IconButton>
+                            <Typography sx={{ minWidth: '60px', textAlign: 'right' }}>${(item.price * item.quantity).toFixed(2)}</Typography>
+                        </ListItem>
+                    ))}
+                </List>
+
+                <Box sx={{ mt: 'auto' }}>
+                    <Divider sx={{ my: 1 }} />
+                    <Typography variant="h5" align="right" sx={{ mb: 2 }}>Total: ${total.toFixed(2)}</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Button variant="contained" color="primary" onClick={onSaveChanges}>Guardar Cambios</Button>
+                        <Button variant="contained" color="success" onClick={onFinalize}>Cobrar y Liberar</Button>
+                    </Box>
+                </Box>
+            </Box>
+        </Drawer>
     );
 }
 

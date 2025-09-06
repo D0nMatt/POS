@@ -1,74 +1,64 @@
-import React, { useState, useContext } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useState, useContext } from 'react';
 
-import { AppBar, Toolbar, Typography, Button, Box, Menu, MenuItem } from '@mui/material';
+const Navbar = () => {
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-function Navbar({ onToggleEditMode, isEditMode }) {
-    const { user, logout } = useContext(AuthContext);
-    const location = useLocation();
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-    const [anchorEl, setAnchorEl] = useState(null);
-    const open = Boolean(anchorEl);
+  return (
+    <nav className="navbar-main">
+      <div className="navbar-section">
+        <NavLink to="/dashboard" className="navbar-link">Mi Negocio</NavLink>
+        <NavLink to="/pos" className="navbar-cta-button">Vender</NavLink>
+      </div>
 
-    const handleMenuClick = (event) => {
-        setAnchorEl(event.currentTarget);
-    };
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-    };
+      <div className="navbar-section">
+        {/* --- Menú de Administración --- */}
+        <div 
+          className="navbar-menu-container"
+          onMouseEnter={() => setAdminMenuOpen(true)} 
+          onMouseLeave={() => setAdminMenuOpen(false)}
+        >
+          <span className="navbar-link">Administración</span>
+          {adminMenuOpen && (
+            <div className="navbar-dropdown">
+              <NavLink to="/dashboard" className="navbar-dropdown-item">Dashboard</NavLink>
+              <NavLink to="/products" className="navbar-dropdown-item">Productos</NavLink>
+              <NavLink to="/employees" className="navbar-dropdown-item">Empleados</NavLink>
+            </div>
+          )}
+        </div>
 
-    return (
-        <AppBar position="static">
-            <Toolbar>
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                    Sistema POS
-                </Typography>
-
-                <Button component={Link} to="/" color="inherit">Dashboard</Button>
-                <Button component={Link} to="/pos" color="inherit">Punto de Venta</Button>
-
-                {user?.role === 'ADMIN' && (
-                    <>
-                        {/*Botón que abre el menú de Inventario */}
-                        <Button
-                            id="inventory-button"
-                            color="inherit"
-                            aria-controls={open ? 'inventory-menu' : undefined}
-                            aria-haspopup="true"
-                            aria-expanded={open ? 'true' : undefined}
-                            onClick={handleMenuClick}
-                        >
-                            Inventario
-                        </Button>
-                        {/*El componente Menu que se muestra u oculta */}
-                        <Menu
-                            id="inventory-menu"
-                            anchorEl={anchorEl}
-                            open={open}
-                            onClose={handleMenuClose}
-                            MenuListProps={{ 'aria-labelledby': 'inventory-button' }}
-                        >
-                            <MenuItem onClick={handleMenuClose} component={Link} to="/products">
-                                Productos
-                            </MenuItem>
-                            {/* Aquí podrías añadir más opciones en el futuro, como "Categorías" o "Proveedores" */}
-                        </Menu>
-
-                        <Button component={Link} to="/employees" color="inherit">Empleados</Button>
-                    </>
-                )}
-
-                <Box sx={{ marginLeft: 'auto' }}>
-                    {/* Botón de Cerrar Sesión */}
-                    <Button onClick={logout} variant="contained" color="secondary">
+        {/* --- Menú de Perfil de Usuario --- */}
+         {user && (
+          <div 
+            className="navbar-menu-container"
+            onMouseEnter={() => setUserMenuOpen(true)} 
+            onMouseLeave={() => setUserMenuOpen(false)}
+          >
+            <div className="navbar-link">
+               Hola, {user.name}
+            </div>
+            {userMenuOpen && (
+                <div className="navbar-dropdown">
+                    <button onClick={handleLogout} className="navbar-dropdown-button">
                         Cerrar Sesión
-                    </Button>
-                </Box>
-
-            </Toolbar>
-        </AppBar>
-    );
-}
+                    </button>
+                </div>
+            )}
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+};
 
 export default Navbar;

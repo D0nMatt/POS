@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, memo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
 import OrderPanel from '../components/OrderPanel';
+import { usePosStore } from '../store/posStore';
 
 function PosPage() {
     const { user } = useContext(AuthContext);
@@ -12,11 +13,9 @@ function PosPage() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const [products, setProducts] = useState([]);
-    const [isPanelOpen, setIsPanelOpen] = useState(false);
-    const [selectedTable, setSelectedTable] = useState(null);
     const lastClickTime = useRef(0);
-    const [currentOrder, setCurrentOrder] = useState([]);
     const [currentOrderId, setCurrentOrderId] = useState(null);
+    const { isPanelOpen, selectedTable, currentOrder, selectTable, addToOrder, removeFromOrder, closePanel } = usePosStore();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -34,7 +33,7 @@ function PosPage() {
         fetchData();
     }, []);
 
-    const handleDragStop = (e, data, table) => {
+    const handleDragStop = useCallback((e, data, table) => {
         // Si la posición no cambió, fue un clic o doble clic
         if (data.x === table.x && data.y === table.y) {
             const now = new Date().getTime();
@@ -54,7 +53,7 @@ function PosPage() {
             api.put(`/tables/${table.id}/layout`, { x: data.x, y: data.y }).catch(console.error);
             setTables(prevTables => prevTables.map(t => (t.id === table.id ? { ...t, x: data.x, y: data.y } : t)));
         }
-    };
+    }, []);
 
     const handleResizeStart = () => {
         setIsResizing(true);
@@ -80,31 +79,19 @@ function PosPage() {
 
     //Función para manejar el clic en una mesa
     const handleTableClick = async (table) => {
-        setSelectedTable(table);
         if (table.status === 'occupied') {
-            // Si la mesa está ocupada, busca su pedido pendiente
             try {
                 const res = await api.get(`/orders/table/${table.id}`);
-                if (res.data) {
-                    // Si encuentra un pedido, lo carga
-                    setCurrentOrder(res.data.items.map(item => ({ ...item.product, quantity: item.quantity })));
-                    setCurrentOrderId(res.data.id);
-                } else {
-                    // Si no hay pedido (caso raro), empieza uno nuevo
-                    setCurrentOrder([]);
-                    setCurrentOrderId(null);
-                }
+                const orderItems = res.data ? res.data.items.map(item => ({ ...item.product, quantity: item.quantity })) : [];
+                const orderId = res.data ? res.data.id : null;
+                selectTable(table, orderItems, orderId);
             } catch (error) {
                 console.error("Error al cargar el pedido:", error);
-                setCurrentOrder([]);
-                setCurrentOrderId(null);
+                selectTable(table, [], null);
             }
         } else {
-            // Si la mesa está libre, empieza un pedido vacío
-            setCurrentOrder([]);
-            setCurrentOrderId(null);
+            selectTable(table, [], null);
         }
-        setIsPanelOpen(true);
     };
 
     const handleAddToOrder = (product) => {
@@ -166,7 +153,7 @@ function PosPage() {
         }
     };
 
-    const Table = ({ table }) => {
+    const Table = memo(({ table }) => {
         const nodeRef = useRef(null);
 
         const style = {
@@ -207,7 +194,7 @@ function PosPage() {
                 </div>
             </Draggable>
         );
-    };
+    });
 
     return (
         <div>
@@ -229,9 +216,9 @@ function PosPage() {
                     table={selectedTable}
                     products={products}
                     order={currentOrder}
-                    onClose={() => setIsPanelOpen(false)}
-                    onAddToOrder={handleAddToOrder}
-                    onRemoveFromOrder={handleRemoveFromOrder}
+                    onClose={closePanel}
+                    onAddToOrder={addToOrder}
+                    onRemoveFromOrder={removeFromOrder}
                     onSaveChanges={handleSaveChanges}
                     onFinalize={handleFinalize}
                 />

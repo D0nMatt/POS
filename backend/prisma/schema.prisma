@@ -1,4 +1,4 @@
-// Este archivo define el proveedor de la base de datos y el generador del cliente.
+// ========= PROVEEDOR DE BD Y GENERADOR DEL CLIENTE =========
 datasource db {
   provider = "sqlite" // Usaremos SQLite para desarrollo local, es súper simple.
   url      = env("DATABASE_URL")
@@ -10,24 +10,26 @@ generator client {
 
 // ========= MODELOS =========
 
-// Modelo para los Usuarios (Administradores y Trabajadores)
+// ========= MODELOS PARA LOS USUARIOS (ADMINISTRADORES Y TRABAJADORES) =========
+
 model User {
   id        Int      @id @default(autoincrement()) // ID numérico único
   email     String   @unique // El email debe ser único para cada usuario
   name      String
-  password  String   // Guardaremos la contraseña encriptada aquí
+  password  String // Guardaremos la contraseña encriptada aquí
   role      String   @default("WORKER") // Puede ser "WORKER" o "ADMIN"
   createdAt DateTime @default(now()) // Fecha de creación del registro
 
-  sales     Sale[]   // Un usuario puede tener muchas ventas
+  sales     Sale[] // Un usuario puede tener muchas ventas
   timeClock TimeClock[]
 }
 
-//Productos del inventario
+// ========= MODELOS PARA LOS PRODUCTOS =========
+
 model Product {
   id        Int      @id @default(autoincrement())
   name      String   @unique // El nombre del producto debe ser único
-  price     Float    // Precio de venta del producto
+  price     Float // Precio de venta del producto
   stock     Int      @default(0) // Cantidad de unidades en inventario
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt // Se actualiza automáticamente al modificar
@@ -35,56 +37,57 @@ model Product {
   saleItems SaleItem[] // Un producto puede estar en muchos items de venta
 }
 
-// ========= NUEVOS MODELOS PARA LAS VENTAS =========
+// ========= MODELOS PARA LAS VENTAS =========
 
 model Sale {
   id        Int      @id @default(autoincrement())
-  total     Float    // Monto total de la venta
+  total     Float // Monto total de la venta
   createdAt DateTime @default(now())
   status    String   @default("PENDING") // NUEVO CAMPO: "PENDING" o "COMPLETED"
-  
-  userId    Int      // Clave foránea para el usuario
-  user      User     @relation(fields: [userId], references: [id]) // Relación con el usuario
-  
-  items     SaleItem[] // Una venta tiene muchos items
-  tableId   Int?      // La venta puede estar asociada a una mesa (opcional)
-  table     Table?    @relation(fields: [tableId], references: [id])
+
+  userId Int // Clave foránea para el usuario
+  user   User @relation(fields: [userId], references: [id]) // Relación con el usuario
+
+  items   SaleItem[] // Una venta tiene muchos items
+  tableId Int? // La venta puede estar asociada a una mesa (opcional)
+  table   Table?     @relation(fields: [tableId], references: [id])
 }
 
 model SaleItem {
-  id        Int      @id @default(autoincrement())
-  quantity  Int      // Cantidad del producto vendido
-  price     Float    // Precio del producto al momento de la venta
-  
-  saleId    Int      // Clave foránea para la venta
-  sale      Sale     @relation(fields: [saleId], references: [id])
-  
-  productId Int      // Clave foránea para el producto
-  product   Product  @relation(fields: [productId], references: [id])
+  id       Int   @id @default(autoincrement())
+  quantity Int // Cantidad del producto vendido
+  price    Float // Precio del producto al momento de la venta
+
+  saleId Int // Clave foránea para la venta
+  sale   Sale @relation(fields: [saleId], references: [id])
+
+  productId Int // Clave foránea para el producto
+  product   Product @relation(fields: [productId], references: [id])
 }
 
-// --- NUEVO MODELO PARA LAS MESAS ---
+// --- MODELO PARA LAS MESAS ---
+
 model Table {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique // Ej: "Mesa 1", "Barra 2"
-  status    String   @default("available") // "available", "occupied"
+  id     Int    @id @default(autoincrement())
+  name   String @unique // Ej: "Mesa 1", "Barra 2"
+  status String @default("available") // "available", "occupied"
 
-  shape     String   @default("square") // "square", "circle"
-  x         Float    @default(0) // Posición X
-  y         Float    @default(0) // Posición Y
-  width     Float    @default(100)
-  height    Float    @default(100)
-  
-  sales     Sale[]   // Una mesa puede tener muchas ventas
+  shape  String @default("square") // "square", "circle"
+  x      Float  @default(0) // Posición X
+  y      Float  @default(0) // Posición Y
+  width  Float  @default(100)
+  height Float  @default(100)
+
+  sales Sale[] // Una mesa puede tener muchas ventas
 }
 
-// ========= NUEVO MODELO PARA EL CONTROL HORARIO =========
+// ========= MODELO PARA EL CONTROL HORARIO =========
 
 model TimeClock {
-  id        Int       @id @default(autoincrement())
-  clockIn   DateTime  // Hora de inicio del turno
-  clockOut  DateTime? // Hora de fin del turno (opcional, porque puede estar en curso)
-  
-  userId    Int
-  user      User      @relation(fields: [userId], references: [id])
+  id       Int       @id @default(autoincrement())
+  clockIn  DateTime // Hora de inicio del turno
+  clockOut DateTime? // Hora de fin del turno (opcional, porque puede estar en curso)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
 }
